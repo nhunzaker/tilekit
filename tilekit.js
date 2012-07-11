@@ -7,863 +7,670 @@
  */
 
 
- // (C) Andrea Giammarchi
- //	Special thanks to Alessandro Crugnola [www.sephiroth.it]
- 
- function aStar(Grid, Start, Goal, Find) {
-	
-	var abs  = Math.abs, 
-	 	max  = Math.max, 
-	 	pow  = Math.pow, 
-	 	sqrt = Math.sqrt, 
-	 	
-	 	cols = Grid[0].length, 
-	 	rows = Grid.length, 
-	 	limit = cols * rows, 
-	 	
-	 	Distance = {
-			Diagonal: Diagonal,
-		 	DiagonalFree: Diagonal,
-		 	Euclidean: Euclidean,
-		 	EuclideanFree: Euclidean,
-		 	Manhattan: Manhattan
-		}[Find] || Manhattan;
+// The Tilekit Namespace
+// -------------------------------------------------- //
 
+window.Tilekit = {
+    debug: false
+};
 
- 	function AStar() {
- 
- 		switch (Find) {
-	 		
- 			case "Diagonal":
- 			case "Euclidean":
- 				Find = DiagonalSuccessors;
- 				break;
- 				
- 			case "DiagonalFree":
- 			case "EuclideanFree":
- 				Find = DiagonalSuccessors$;
- 				break;
- 				
- 			default:
- 				Find = function() {};
- 				break;
- 		}
+$.extend(window.Tilekit.prototype, new window.EventEmitter2());
 
- 	}
+window.TK = window.Tilekit;
+// Helpers
+//= require ./geo
+// -------------------------------------------------- //
 
- 	function $Grid(x, y) {
-	 	return Grid[y][x].isTraversable();
- 	}
+Array.prototype.isArray = true;
 
- 	function Node(Parent, Point) {
- 		return {
-	 		Parent: Parent,
-	 		value: Point.x + (Point.y * cols),
-	 		x: Point.x,
-	 		y: Point.y,
-	 		f: 0,
-	 		g: 0
-	 	};
- 	}
-
- 	function Path() {
-	 	
- 		var $Start = Node(null, { x: Start[0], y: Start[1] }), 
- 			$Goal = Node(null, {x: Goal[0], y: Goal[1] }), 
- 			AStar = new Array(limit), 
- 			Open = [$Start], 
- 			Closed = [], 
- 			result = [], 
- 			$Successors, 
- 			$Node, 
- 			$Path, 
- 			length, 
- 			max, 
- 			min, 
- 			i, 
- 			j;
- 			
- 		while (length = Open.length) {
-
- 			max = limit;
- 			min = -1;
-
- 			for (i = 0; i < length; i++) {
-
- 				if (Open[i].f < max) {
- 					max = Open[i].f;
- 					min = i;
- 				}
-
- 			}
-
- 			$Node = Open.splice(min, 1)[0];
-
- 			if ($Node.value === $Goal.value) {
-
- 				$Path = Closed[Closed.push($Node) - 1];
-
- 				do {
- 					result.push([$Path.x, $Path.y]);
- 				} while ($Path = $Path.Parent);
-
- 				AStar = Closed = Open = [];
- 				result.reverse();
-
- 			} else {
-
- 				$Successors = Successors($Node.x, $Node.y);
-
- 				for (i = 0, j = $Successors.length; i < j; i++) {
- 					$Path = Node($Node, $Successors[i]);
-
- 					if (!AStar[$Path.value]) {
- 						$Path.g = $Node.g + Distance($Successors[i], $Node);
- 						$Path.f = $Path.g + Distance($Successors[i], $Goal);
- 						Open.push($Path);
- 						AStar[$Path.value] = true;
- 					}
-
- 				}
-
- 				Closed.push($Node);
- 			}
-
- 		}
-
- 		return result;
- 	}
-
- 	function Successors(x, y) {
-	 	
- 		var N = y - 1, 
- 			S = y + 1, 
- 			E = x + 1, 
- 			W = x - 1, 
- 			$N = N > -1 && $Grid(x, N), 
- 			$S = S < rows && $Grid(x, S), 
- 			$E = E < cols && $Grid(E, y), 
- 			$W = W > -1 && $Grid(W, y), 
- 			result = [];
- 			
- 		if ($N)
- 			result.push({x: x,y: N});
- 		if ($E)
- 			result.push({x: E,y: y});
- 		if ($S)
- 			result.push({x: x,y: S});
- 		if ($W)
- 			result.push({x: W,y: y});
-
- 		Find($N, $S, $E, $W, N, S, E, W, result);
-
- 		return result;
- 	}
-
- 	function DiagonalSuccessors($N, $S, $E, $W, N, S, E, W, result) {
-
- 		if ($N) {
- 			if ($E && $Grid(E, N))
- 				result.push({x: E,y: N});
- 			if ($W && $Grid(W, N))
- 				result.push({x: W,y: N});
- 		}
-
- 		if ($S) {
- 			if ($E && $Grid(E, S))
- 				result.push({x: E,y: S});
- 			if ($W && $Grid(W, S))
- 				result.push({x: W,y: S});
- 		}
-
- 	}
-
- 	function DiagonalSuccessors$($N, $S, $E, $W, N, S, E, W, result) {
-
- 		$N = N > -1;
- 		$S = S < rows;
- 		$E = E < cols;
- 		$W = W > -1;
-  		if ($E) {
- 			if ($N && $Grid(E, N))
- 				result.push({x: E,y: N});
- 			if ($S && $Grid(E, S))
- 				result.push({x: E,y: S});
- 		}
-
- 		if ($W) {
- 			if ($N && $Grid(W, N))
- 				result.push({x: W,y: N});
- 			if ($S && $Grid(W, S))
- 				result.push({x: W,y: S});
- 		}
-
- 	}
-
- 	function Diagonal(Point, Goal) {
- 		return max(abs(Point.x - Goal.x), abs(Point.y - Goal.y));
- 	}
-
- 	function Euclidean(Point, Goal) {
- 		return sqrt(pow(Point.x - Goal.x, 2) + pow(Point.y - Goal.y, 2));
- 	}
-
- 	function Manhattan(Point, Goal) {
- 		return abs(Point.x - Goal.x) + abs(Point.y - Goal.y);
- 	}
- 	
- 	return Path(AStar());
-
- }
-;!function(exports, undefined) {
-
-  var isArray = Array.isArray ? Array.isArray : function _isArray(obj) {
-    return Object.prototype.toString.call(obj) === "[object Array]";
-  };
-  var defaultMaxListeners = 10;
-
-  function init() {
-    this._events = new Object;
-  }
-
-  function configure(conf) {
-    if (conf) {
-      conf.delimiter && (this.delimiter = conf.delimiter);
-      conf.wildcard && (this.wildcard = conf.wildcard);
-      if (this.wildcard) {
-        this.listenerTree = new Object;
-      }
-    }
-  }
-
-  function EventEmitter(conf) {
-    this._events = new Object;
-    configure.call(this, conf);
-  }
-
-  //
-  // Attention, function return type now is array, always !
-  // It has zero elements if no any matches found and one or more
-  // elements (leafs) if there are matches
-  //
-  function searchListenerTree(handlers, type, tree, i) {
-    if (!tree) {
-      return [];
-    }
-    var listeners=[], leaf, len, branch, xTree, xxTree, isolatedBranch, endReached,
-        typeLength = type.length, currentType = type[i], nextType = type[i+1];
-    if (i === typeLength && tree._listeners) {
-      //
-      // If at the end of the event(s) list and the tree has listeners
-      // invoke those listeners.
-      //
-      if (typeof tree._listeners === 'function') {
-        handlers && handlers.push(tree._listeners);
-        return [tree];
-      } else {
-        for (leaf = 0, len = tree._listeners.length; leaf < len; leaf++) {
-          handlers && handlers.push(tree._listeners[leaf]);
-        }
-        return [tree];
-      }
-    }
-
-    if ((currentType === '*' || currentType === '**') || tree[currentType]) {
-      //
-      // If the event emitted is '*' at this part
-      // or there is a concrete match at this patch
-      //
-      if (currentType === '*') {
-        for (branch in tree) {
-          if (branch !== '_listeners' && tree.hasOwnProperty(branch)) {
-            listeners = listeners.concat(searchListenerTree(handlers, type, tree[branch], i+1));
-          }
-        }
-        return listeners;
-      } else if(currentType === '**') {
-        endReached = (i+1 === typeLength || (i+2 === typeLength && nextType === '*'));
-        if(endReached && tree._listeners) {
-          // The next element has a _listeners, add it to the handlers.
-          listeners = listeners.concat(searchListenerTree(handlers, type, tree, typeLength));
-        }
-
-        for (branch in tree) {
-          if (branch !== '_listeners' && tree.hasOwnProperty(branch)) {
-            if(branch === '*' || branch === '**') {
-              if(tree[branch]._listeners && !endReached) {
-                listeners = listeners.concat(searchListenerTree(handlers, type, tree[branch], typeLength));
-              }
-              listeners = listeners.concat(searchListenerTree(handlers, type, tree[branch], i));
-            } else if(branch === nextType) {
-              listeners = listeners.concat(searchListenerTree(handlers, type, tree[branch], i+2));
-            } else {
-              // No match on this one, shift into the tree but not in the type array.
-              listeners = listeners.concat(searchListenerTree(handlers, type, tree[branch], i));
-            }
-          }
-        }
-        return listeners;
-      }
-
-      listeners = listeners.concat(searchListenerTree(handlers, type, tree[currentType], i+1));
-    }
-
-    xTree = tree['*'];
-    if (xTree) {
-      //
-      // If the listener tree will allow any match for this part,
-      // then recursively explore all branches of the tree
-      //
-      searchListenerTree(handlers, type, xTree, i+1);
-    }
-    
-    xxTree = tree['**'];
-    if(xxTree) {
-      if(i < typeLength) {
-        if(xxTree._listeners) {
-          // If we have a listener on a '**', it will catch all, so add its handler.
-          searchListenerTree(handlers, type, xxTree, typeLength);
-        }
-        
-        // Build arrays of matching next branches and others.
-        for(branch in xxTree) {
-          if(branch !== '_listeners' && xxTree.hasOwnProperty(branch)) {
-            if(branch === nextType) {
-              // We know the next element will match, so jump twice.
-              searchListenerTree(handlers, type, xxTree[branch], i+2);
-            } else if(branch === currentType) {
-              // Current node matches, move into the tree.
-              searchListenerTree(handlers, type, xxTree[branch], i+1);
-            } else {
-              isolatedBranch = {};
-              isolatedBranch[branch] = xxTree[branch];
-              searchListenerTree(handlers, type, { '**': isolatedBranch }, i+1);
-            }
-          }
-        }
-      } else if(xxTree._listeners) {
-        // We have reached the end and still on a '**'
-        searchListenerTree(handlers, type, xxTree, typeLength);
-      } else if(xxTree['*'] && xxTree['*']._listeners) {
-        searchListenerTree(handlers, type, xxTree['*'], typeLength);
-      }
-    }
-
-    return listeners;
-  }
-
-  function growListenerTree(type, listener) {
-
-    type = typeof type === 'string' ? type.split(this.delimiter) : type.slice();
-    
-    //
-    // Looks for two consecutive '**', if so, don't add the event at all.
-    //
-    for(var i = 0, len = type.length; i+1 < len; i++) {
-      if(type[i] === '**' && type[i+1] === '**') {
-        return;
-      }
-    }
-
-    var tree = this.listenerTree;
-    var name = type.shift();
-
-    while (name) {
-
-      if (!tree[name]) {
-        tree[name] = new Object;
-      }
-
-      tree = tree[name];
-
-      if (type.length === 0) {
-
-        if (!tree._listeners) {
-          tree._listeners = listener;
-        }
-        else if(typeof tree._listeners === 'function') {
-          tree._listeners = [tree._listeners, listener];
-        }
-        else if (isArray(tree._listeners)) {
-
-          tree._listeners.push(listener);
-
-          if (!tree._listeners.warned) {
-
-            var m = defaultMaxListeners;
-            
-            if (typeof this._events.maxListeners !== 'undefined') {
-              m = this._events.maxListeners;
-            }
-
-            if (m > 0 && tree._listeners.length > m) {
-
-              tree._listeners.warned = true;
-              console.error('(node) warning: possible EventEmitter memory ' +
-                            'leak detected. %d listeners added. ' +
-                            'Use emitter.setMaxListeners() to increase limit.',
-                            tree._listeners.length);
-              console.trace();
-            }
-          }
-        }
-        return true;
-      }
-      name = type.shift();
-    }
-    return true;
-  };
-
-  // By default EventEmitters will print a warning if more than
-  // 10 listeners are added to it. This is a useful default which
-  // helps finding memory leaks.
-  //
-  // Obviously not all Emitters should be limited to 10. This function allows
-  // that to be increased. Set to zero for unlimited.
-
-  EventEmitter.prototype.delimiter = '.';
-
-  EventEmitter.prototype.setMaxListeners = function(n) {
-    this._events || init.call(this);
-    this._events.maxListeners = n;
-  };
-
-  EventEmitter.prototype.event = '';
-
-  EventEmitter.prototype.once = function(event, fn) {
-    this.many(event, 1, fn);
-    return this;
-  };
-
-  EventEmitter.prototype.many = function(event, ttl, fn) {
+Function.prototype.pulse = function(interval, args, scope) {
     var self = this;
+    this.__interval = setInterval(function() {
+        self.apply(scope || self, args);
+    }, interval || 1000);
+};
 
-    if (typeof fn !== 'function') {
-      throw new Error('many only accepts instances of Function');
+// Rounds to a given number
+Number.prototype.roundTo = function roundTo (to) {
+
+    if (this < to / 2) {
+        return 0;
     }
 
-    function listener() {
-      if (--ttl === 0) {
-        self.off(event, listener);
-      }
-      fn.apply(this, arguments);
+    var amount = to * Math.round(this / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
+
+// Floors to a given number
+Number.prototype.floorTo = function (to) {
+
+    if (this < to) {
+        return 0;
+    }
+
+    var amount = to * Math.floor(this / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
+
+// Ceils to a given number
+Number.prototype.ceilTo = function roundTo (to) {
+
+    if (this < to) {
+        return to;
+    }
+
+    var amount = to * Math.ceil(this / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
+
+// Given a number, iterate over the absolute value
+Number.prototype.times = function(cb, scope) {
+
+    if (this === 0) {
+        return;
+    }
+    
+    var i = ~~Math.abs(this),
+        n = 0;
+    
+    do { 
+        cb.apply(scope || this, [n]); 
+        i--;
+        n++;
+    } while(i > 0);
+
+};
+
+// Simple "trim" Polyfill
+String.prototype.trim = String.prototype.trim || function() {
+    return this.replace(/^\s+|\s+$/g,"");
+};
+
+
+// Request Animation Frame Polyfill
+// -------------------------------------------------- //
+
+if (typeof window !== 'undefined') {
+    
+    window.requestAnimationFrame = (function(){
+        
+        return window.requestAnimationFrame    || 
+            window.webkitRequestAnimationFrame || 
+            window.mozRequestAnimationFrame    || 
+            window.oRequestAnimationFrame      || 
+            window.msRequestAnimationFrame     || 
+            function( callback ) {
+                window.setTimeout(callback, 1000 / 60);
+            };
+
+    }());
+}
+
+
+// Bind Polyfill
+// -------------------------------------------------- //
+
+if (!Function.prototype.bind) {
+
+    Function.prototype.bind = function (oThis) {
+        if (typeof this !== "function") {
+            // closest thing possible to the ECMAScript 5 internal IsCallable function
+            throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
+        }
+
+        var aArgs = Array.prototype.slice.call(arguments, 1), 
+            fToBind = this, 
+            FNOP = function () {},
+            fBound = function () {
+                return fToBind.apply(this instanceof FNOP ? this : oThis,
+                                     aArgs.concat(Array.prototype.slice.call(arguments)));
+            };
+
+        FNOP.prototype = this.prototype;
+        fBound.prototype = new FNOP();
+
+        return fBound;
     };
 
-    listener._origin = fn;
+}
 
-    this.on(event, listener);
 
-    return self;
-  };
+// Math Helpers
+// -------------------------------------------------- //
 
-  EventEmitter.prototype.emit = function() {
-    this._events || init.call(this);
+Math.percentChance = function(val, callback) {
+    if (Math.random() < val / 100) {
+        callback();
+    }
+};
 
-    var type = arguments[0];
+Math.parseDelta = function(number, total) {
 
-    if (type === 'newListener') {
-      if (!this._events.newListener) { return false; }
+    if (/\%/.test(number)) {
+        return total * (parseFloat(number, 10) / 100);
     }
 
-    // Loop through the *_all* functions and invoke them.
-    if (this._all) {
-      var l = arguments.length;
-      var args = new Array(l - 1);
-      for (var i = 1; i < l; i++) args[i - 1] = arguments[i];
-      for (i = 0, l = this._all.length; i < l; i++) {
-        this.event = type;
-        this._all[i].apply(this, args);
-      }
+    if (/\+|\-/.test(number)) {
+        return total + parseFloat(number, 10);
     }
-
-    // If there is no 'error' event listener then throw.
-    if (type === 'error') {
-      
-      if (!this._all && 
-        !this._events.error && 
-        !(this.wildcard && this.listenerTree.error)) {
-
-        if (arguments[1] instanceof Error) {
-          throw arguments[1]; // Unhandled 'error' event
-        } else {
-          throw new Error("Uncaught, unspecified 'error' event.");
-        }
-        return false;
-      }
-    }
-
-    var handler;
-
-    if(this.wildcard) {
-      handler = [];
-      var ns = typeof type === 'string' ? type.split(this.delimiter) : type.slice();
-      searchListenerTree.call(this, handler, ns, this.listenerTree, 0);
-    }
-    else {
-      handler = this._events[type];
-    }
-
-    if (typeof handler === 'function') {
-      this.event = type;
-      if (arguments.length === 1) {
-        handler.call(this);
-      }
-      else if (arguments.length > 1)
-        switch (arguments.length) {
-          case 2:
-            handler.call(this, arguments[1]);
-            break;
-          case 3:
-            handler.call(this, arguments[1], arguments[2]);
-            break;
-          // slower
-          default:
-            var l = arguments.length;
-            var args = new Array(l - 1);
-            for (var i = 1; i < l; i++) args[i - 1] = arguments[i];
-            handler.apply(this, args);
-        }
-      return true;
-    }
-    else if (handler) {
-      var l = arguments.length;
-      var args = new Array(l - 1);
-      for (var i = 1; i < l; i++) args[i - 1] = arguments[i];
-
-      var listeners = handler.slice();
-      for (var i = 0, l = listeners.length; i < l; i++) {
-        this.event = type;
-        listeners[i].apply(this, args);
-      }
-      return (listeners.length > 0) || this._all;
-    }
-    else {
-      return this._all;
-    }
-
-  };
-
-  EventEmitter.prototype.on = function(type, listener) {
     
-    if (typeof type === 'function') {
-      this.onAny(type);
-      return this;
-    }
+    return number;
+};
 
-    if (typeof listener !== 'function') {
-      throw new Error('on only accepts instances of Function');
-    }
-    this._events || init.call(this);
 
-    // To avoid recursion in the case that type == "newListeners"! Before
-    // adding it to the listeners, first emit "newListeners".
-    this.emit('newListener', type, listener);
+// Formatting helpers
+// -------------------------------------------------- //
 
-    if(this.wildcard) {
-      growListenerTree.call(this, type, listener);
-      return this;
-    }
+(function() {
+    var Format = window.Format = {};
 
-    if (!this._events[type]) {
-      // Optimize the case of one listener. Don't need the extra array object.
-      this._events[type] = listener;
-    }
-    else if(typeof this._events[type] === 'function') {
-      // Adding the second element, need to change to array.
-      this._events[type] = [this._events[type], listener];
-    }
-    else if (isArray(this._events[type])) {
-      // If we've already got an array, just append.
-      this._events[type].push(listener);
+    Format.align = function(orientation, segment, total, offset) {
 
-      // Check for listener leak
-      if (!this._events[type].warned) {
-
-        var m = defaultMaxListeners;
+        if (/bottom|right/ig.test(orientation)) {
+            return (total - offset) - segment;
+        } else {
+            return offset;
+        }
         
-        if (typeof this._events.maxListeners !== 'undefined') {
-          m = this._events.maxListeners;
-        }
+    };
 
-        if (m > 0 && this._events[type].length > m) {
-
-          this._events[type].warned = true;
-          console.error('(node) warning: possible EventEmitter memory ' +
-                        'leak detected. %d listeners added. ' +
-                        'Use emitter.setMaxListeners() to increase limit.',
-                        this._events[type].length);
-          console.trace();
-        }
-      }
-    }
-    return this;
-  };
-
-  EventEmitter.prototype.onAny = function(fn) {
-
-    if(!this._all) {
-      this._all = [];
-    }
-
-    if (typeof fn !== 'function') {
-      throw new Error('onAny only accepts instances of Function');
-    }
-
-    // Add the function to the event listener collection.
-    this._all.push(fn);
-    return this;
-  };
-
-  EventEmitter.prototype.addListener = EventEmitter.prototype.on;
-
-  EventEmitter.prototype.off = function(type, listener) {
-    if (typeof listener !== 'function') {
-      throw new Error('removeListener only takes instances of Function');
-    }
-
-    var handlers,leafs=[];
-
-    if(this.wildcard) {
-      var ns = typeof type === 'string' ? type.split(this.delimiter) : type.slice();
-      leafs = searchListenerTree.call(this, null, ns, this.listenerTree, 0);
-    }
-    else {
-      // does not use listeners(), so no side effect of creating _events[type]
-      if (!this._events[type]) return this;
-      handlers = this._events[type];
-      leafs.push({_listeners:handlers});
-    }
-
-    for (var iLeaf=0; iLeaf<leafs.length; iLeaf++) {
-      var leaf = leafs[iLeaf];
-      handlers = leaf._listeners;
-      if (isArray(handlers)) {
-
-        var position = -1;
-
-        for (var i = 0, length = handlers.length; i < length; i++) {
-          if (handlers[i] === listener ||
-            (handlers[i].listener && handlers[i].listener === listener) ||
-            (handlers[i]._origin && handlers[i]._origin === listener)) {
-            position = i;
-            break;
-          }
-        }
-
-        if (position < 0) {
-          return this;
-        }
-
-        if(this.wildcard) {
-          leaf._listeners.splice(position, 1)
-        }
-        else {
-          this._events[type].splice(position, 1);
-        }
-
-        if (handlers.length === 0) {
-          if(this.wildcard) {
-            delete leaf._listeners;
-          }
-          else {
-            delete this._events[type];
-          }
-        }
-      }
-      else if (handlers === listener ||
-        (handlers.listener && handlers.listener === listener) ||
-        (handlers._origin && handlers._origin === listener)) {
-        if(this.wildcard) {
-          delete leaf._listeners;
-        }
-        else {
-          delete this._events[type];
-        }
-      }
-    }
-
-    return this;
-  };
-
-  EventEmitter.prototype.offAny = function(fn) {
-    var i = 0, l = 0, fns;
-    if (fn && this._all && this._all.length > 0) {
-      fns = this._all;
-      for(i = 0, l = fns.length; i < l; i++) {
-        if(fn === fns[i]) {
-          fns.splice(i, 1);
-          return this;
-        }
-      }
+    if (typeof module !== 'undefined') {
+        global.Format = Format;
     } else {
-      this._all = [];
+        window.Format = Format;
     }
+
+}());
+// Geometry Helpers
+//-------------------------------------------------- //
+
+(function() {
+
+    var Geo = {};
+
+    Geo.toRadians = function(degrees) {
+        return degrees * (Math.PI/180);
+    };
+
+    Geo.findAngle = function(point1, point2) {
+
+        if (point1.isArray) {
+            point1 = { x: point1[0], y: point1[1] };
+        }
+
+        if (point2.isArray) {
+            point2 = { x: point2[0], y: point2[1] };
+        }
+
+        var angle = Math.atan2(point2.y - point1.y, point2.x - point1.x) * (180 / Math.PI);
+
+        return angle < 0 ? angle + 360: angle;
+    };
+
+    Geo.findPoint = function(point, distance, angle, round) {
+
+        round = round || 100;
+
+        var rads = Geo.toRadians(angle);
+
+        return {
+            x: point.x + distance * ~~(Math.cos(rads) * round) / round,
+            y: point.y + distance * ~~(Math.sin(rads) * round) / round
+        };
+
+    };
+
+    Geo.findDistance = function(point1, point2) {
+
+        var distX    = Math.pow(point2.x - point1.x, 2),
+            distY    = Math.pow(point2.y - point1.y, 2),
+            distance = Math.sqrt(distX + distY);
+
+        return distance;
+
+    };
+
+    Geo.isWithinCone = function(center, point, radius, angle, cone) {
+
+        var trajectory = Geo.findAngle(point, center),
+            distance   = Geo.findDistance(center, point);
+
+        if (distance >= radius) {
+            return false;
+        }
+
+        // 1. The angle from the center through point should be between the cone
+        if (angle - cone >= trajectory || trajectory >= angle + cone) {
+            return false;
+        }
+
+        // 2. The distance from centerX,centerY to X,Y should be less then the Radius
+        return true;
+
+    };
+
+    if (typeof module !== 'undefined') {
+        global.Geo = Geo;
+    } else {
+        window.Geo = Geo;
+    }
+
+}());
+// Primitives.js
+// A collection of shape helpers for canvas
+
+// The Rectangle
+// -------------------------------------------------- //
+
+var Rectangle = function(canvas, options) {
+
+    var self = this,
+        te = options.tileEngine;
+
+    $.extend(this, {
+        x      : 0,
+        y      : 0,
+        stroke : null,
+        fill   : null,
+        width  : 100,
+        height : 100
+    }, options);
+    
+    this.canvas = canvas;
+    this.c = this.canvas.getContext('2d');
+
+    if (te) {
+
+        te.on("refresh", function() {
+            window.requestAnimationFrame(function() {
+                self.draw();
+            });
+        });
+
+    }
+
+    // Render the rectangle
+    this.draw = function() {
+
+        var posX = this.x,
+            posY = this.y;
+        
+        if (this.tile) {
+            
+            var te     = this.tileEngine,
+                canvas = this.canvas,
+                tile   = te.tile,
+                size   = te.get("size"),
+                scroll = te.get("scroll"),
+                deltaX = (canvas.width / 2) - (size / 2),
+                deltaY = (canvas.height / 2) - (size / 2);
+            
+            posX = this.tile.x * size;
+            posY = this.tile.y * size;
+            
+            posX += (deltaX) - (scroll.x * 2);
+            posY += (deltaY) - (scroll.y * 2);
+        }
+
+        // If we have a fill color, create a solid color rectangle
+        if (this.fill) {
+            this.c.fillStyle = this.fill;
+            this.c.fillRect(posX, posY, this.width, this.height);
+        }
+        
+        // If a stroke color has been specified, create a stroke
+        // rectangle on top of the fill rectangle
+        if (this.stroke) {
+            this.c.strokeStyle = this.stroke;
+            this.c.strokeRect(posX, posY, this.width, this.height);
+        }
+
+    };
+    
     return this;
-  };
+};
 
-  EventEmitter.prototype.removeListener = EventEmitter.prototype.off;
+// A simple text module
 
-  EventEmitter.prototype.removeAllListeners = function(type) {
-    if (arguments.length === 0) {
-      !this._events || init.call(this);
-      return this;
+var TextBox = function(options) {
+
+    options = options || {};
+
+    this.header     = options.header || "???";
+    this.subheader  = options.subheader || false;
+    this.body       = options.body || "";
+    this.context    = options.context;
+    this.lineheight = options.lineheight || 25;
+};
+
+TextBox.prototype.setFont = function(color, font) {
+    var ctx = this.context;
+
+    ctx.textBaseline = "top";
+    ctx.fillStyle = color;
+    ctx.font = font;
+};
+
+TextBox.prototype.drawWindow = function() {
+
+    var ctx = this.context;
+
+    ctx.fillStyle = "#f0f0f0";
+    ctx.fillRect(0,
+                 document.height - (document.height * 0.2),
+                 document.width,
+                 (document.height * 0.2));
+
+    ctx.fillStyle = "#333";
+    ctx.fillRect(0,
+                 document.height - (document.height * 0.2) - 2,
+                 document.width, 2);
+
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0,
+                 document.height - (document.height * 0.2) + 1,
+                 document.width,
+                 1);
+
+};
+
+TextBox.prototype.drawText = function(text, x, y) {
+
+    this.context.fillText(text,
+                          (document.width * 0.1) + (x || 0),
+                          (document.height - (document.height * 0.2)) + (y || 0)
+                         );
+};
+
+TextBox.prototype.drawEllipsis = function() {
+
+    var ctx = this.context,
+        width = document.width * 0.93,
+        height = document.height - (document.height * 0.05);
+
+    ctx.fillStyle = "#333";
+    ctx.fillRect(width,
+                 height,
+                 5, 5);
+    ctx.fillRect(width + 10,
+                 height,
+                 5, 5);
+    ctx.fillRect(width + 20,
+                 height,
+                 5, 5);
+};
+
+TextBox.prototype.draw = function() {
+
+    var ctx = this.context,
+        self = this;
+
+    this.drawWindow();
+
+
+    // The Message header
+    // -------------------------------------------------- //
+
+    this.setFont("black", "bold 14pt monospace");
+    this.drawText(this.header, 0, 15);
+
+    if (this.subheader) {
+        this.setFont("#666", "normal 10pt monospace");
+        this.drawText(this.subheader, 0, 40);
     }
 
-    if(this.wildcard) {
-      var ns = typeof type === 'string' ? type.split(this.delimiter) : type.slice();
-      var leafs = searchListenerTree.call(this, null, ns, this.listenerTree, 0);
+    // The Message Contents
+    // -------------------------------------------------- //
 
-      for (var iLeaf=0; iLeaf<leafs.length; iLeaf++) {
-        var leaf = leafs[iLeaf];
-        leaf._listeners = null;
-      }
-    }
-    else {
-      if (!this._events[type]) return this;
-      this._events[type] = null;
-    }
-    return this;
-  };
+    this.setFont("#333", "normal 14pt monospace");
 
-  EventEmitter.prototype.listeners = function(type) {
-    if(this.wildcard) {
-      var handlers = [];
-      var ns = typeof type === 'string' ? type.split(this.delimiter) : type.slice();
-      searchListenerTree.call(this, handlers, ns, this.listenerTree, 0);
-      return handlers;
-    }
+    var pixelLength = 0,
+        words = this.body.split(" "),
+        line = 70, // 70 for the base pixel offset
+        i = 0, word = "", measure = 0;
 
-    this._events || init.call(this);
+    while(words[i]) {
+        word = words[i];
+        measure = ctx.measureText(word + " ").width;
 
-    if (!this._events[type]) this._events[type] = [];
-    if (!isArray(this._events[type])) {
-      this._events[type] = [this._events[type]];
-    }
-    return this._events[type];
-  };
+        if (pixelLength + measure > document.width * 0.85) {
+            pixelLength = 0;
+            line += this.lineheight;
+        }
 
-  EventEmitter.prototype.listenersAny = function() {
+        if (line > (document.height * 0.2) - (document.height * 0.05)) {
+            return;
+        }
 
-    if(this._all) {
-      return this._all;
-    }
-    else {
-      return [];
+        self.drawText(word, pixelLength, line);
+
+        pixelLength += ctx.measureText(word + " ").width;
+
+        i++;
     }
 
-  };
+    this.drawEllipsis();
 
-  if (typeof define === 'function' && define.amd) {
-    define(function() {
-      return EventEmitter;
-    });
-  } else {
-    exports.EventEmitter2 = EventEmitter; 
-  }
+    return;
 
-}(typeof process !== 'undefined' && typeof process.title !== 'undefined' && typeof exports !== 'undefined' ? exports : window);
-/*!
-  * klass: a classical JS OOP façade
-  * https://github.com/ded/klass
-  * License MIT (c) Dustin Diaz & Jacob Thornton 2012
-  */
-!function(a,b){typeof define=="function"?define(b):typeof module!="undefined"?module.exports=b():this[a]=b()}("klass",function(){function f(a){return j.call(g(a)?a:function(){},a,1)}function g(a){return typeof a===c}function h(a,b,c){return function(){var d=this.supr;this.supr=c[e][a];var f=b.apply(this,arguments);return this.supr=d,f}}function i(a,b,c){for(var f in b)b.hasOwnProperty(f)&&(a[f]=g(b[f])&&g(c[e][f])&&d.test(b[f])?h(f,b[f],c):b[f])}function j(a,b){function c(){}function l(){this.initialize?this.initialize.apply(this,arguments):(b||h&&d.apply(this,arguments),j.apply(this,arguments))}c[e]=this[e];var d=this,f=new c,h=g(a),j=h?a:this,k=h?{}:a;return l.methods=function(a){return i(f,a,d),l[e]=f,this},l.methods.call(l,k).prototype.constructor=l,l.extend=arguments.callee,l[e].implement=l.statics=function(a,b){return a=typeof a=="string"?function(){var c={};return c[a]=b,c}():a,i(this,a,d),this},l}var a=this,b=a.klass,c="function",d=/xyz/.test(function(){xyz})?/\bsupr\b/:/.*/,e="prototype";return f.noConflict=function(){return a.klass=b,this},a.klass=f,f})
-// Character.js
-//
-// EVENTS:
-//
-// "blocked" - when movement is prohibited by terrain
-// "collision" - when movement is prohibited by other units
-// "see" - when another object comes into visual range
-// "hear" - when another object comes into hearing range
-// "refresh" - when the sprite is redrawn
-// "change" - when an attribute is changed
-//
+};
+/**
+ * A simple timer
+ */
+
+var Timer = function() {
+    this.date = new Date();
+};
+
+Timer.prototype.update = function() {
+    var d = new Date();
+    this.date = d;
+};
+
+Timer.prototype.getMilliseconds = function() {
+    return this.date.getTime();
+};
+
+Timer.prototype.getSeconds = function() {
+    return Math.round(this.date.getTime() / 1000);
+};
+// A generic sprite class
 // -------------------------------------------------- //
 
 (function(Tilekit) {
 
-    var Character = Tilekit.Character = Tilekit.Unit.extend({
+    var Sprite = Tilekit.Sprite = function(src, width, height, offsetX, offsetY, frames, duration, target) {
 
-        attributes: {
-            comment: "",
-            emote: "",
-            speed: 2,
-            face: 270,
-            hearing: 64,
-            vision: 96,
-            visionCone: 30
-        },
+        this.spritesheet = null;
+        this.offsetX = 0;
+        this.offsetY = 0;
+        this.width = width;
+        this.height = height;
+        this.frames = 1;
+        this.currentFrame = 0;
+        this.duration = 1;
+        this.posX = 0;
+        this.posY = 0;
+        this.shown = true;
+        this.zoomLevel = 1;
+        this.shadow = null;
 
-        showName: false,
+        this.setSpritesheet(src);
+        this.setOffset(offsetX, offsetY);
+        this.setFrames(frames);
+        this.setDuration(duration);
 
-        initialize: function(name, scene, options) {
-            this.supr(name, scene, options);
-            var size = scene.grid.get("size");
-            this.emote_sprite = new Tilekit.Sprite("/assets/emotes.png", size, size, 0, 0);
-        },
+        this.target = target;
 
-        layers: {
+        this.timer = new window.Timer();
+        this.created_at = Date.now();
 
-            emote: function() {
+        var d = new Date();
 
-                var emote = this.emote_sprite,
-                    pos   = this.get("position"),
-                    size  = this.grid.get('size'),
-                    which = {
+        if (this.duration > 0 && this.frames > 0) {
+            this.ftime = d.getTime() + (this.duration / this.frames);
+        } else {
+            this.ftime = 0;
+        }
 
-                        // Emotions
-                        "surprised" : [0, 0],
-                        "sad"       : [32, 0],
-                        "love"      : [64, 0],
-                        "power"     : [96, 0],
-                        "happy"     : [128, 0],
-                        "disguise"  : [160, 0],
+    };
 
-                        // Events
-                        "poison"    : [0, 32],
-                        "quest"     : [32, 32],
-                        "idea"      : [64, 32],
+    Sprite.prototype.setSpritesheet = function(src) {
+        if (src instanceof Image) {
+            this.spritesheet = src;
+        } else {
+            this.spritesheet = new Image();
+            this.spritesheet.src = src;
+        }
 
-                        // Sense
-                        "see"       : [0, 64],
-                        "hear"      : [32, 64]
+        return this;
+    };
 
-                    }[this.get("emote")] || false;
+    Sprite.prototype.setPosition = function(x, y) {
+        this.posX = x;
+        this.posY = y;
 
-                if (!which) {
-                    return false;
-                }
+        return this;
+    };
 
-                emote.setPosition(pos.x, pos.y - (size + (Math.cos( Date.now() / 500) * 2) ) );
-                emote.setOffset( which[0], which[1] );
-                emote.draw(this.ctx);
+    Sprite.prototype.setOffset = function(x, y) {
+        this.offsetX = x;
+        this.offsetY = y;
 
-            },
+        return this;
+    };
 
-            renderName: function() {
+    Sprite.prototype.setFrames = function(fcount) {
+        this.currentFrame = 0;
+        this.frames = fcount;
 
-                if (!this.showName) {
-                    return;
-                }
+        return this;
+    };
 
-                var c = this.ctx,
-                    name = this.get("name");
+    Sprite.prototype.setDuration = function(duration) {
+        this.duration = duration;
 
-                c.font = "15px monospace";
-                c.fillStyle = "#000";
+        return this;
+    };
 
-                var textWidth = this.ctx.measureText(name).width;
+    Sprite.prototype.nextFrame = function() {
 
-                c.fillText(name,
-                           (this.tile.x * 32) - (textWidth / 10),
-                           (this.tile.y * 31)
-                          );
+        if (this.duration > 0) {
+
+            var d = new Date();
+
+            if (this.duration > 0 && this.frames > 0) {
+                this.ftime = d.getTime() + (this.duration / this.frames);
+            } else {
+                this.ftime = 0;
+            }
+
+            this.offsetX = this.width * this.currentFrame;
+
+            if (this.currentFrame === (this.frames - 1)) {
+                this.currentFrame = 0;
+            } else {
+                this.currentFrame++;
             }
 
         }
 
-    });
+        return this;
+    };
+
+    Sprite.prototype.animate = function(t) {
+
+        // Default to the sprites native timer
+        t = t || this.timer;
+
+        t.update();
+
+        if (t.getMilliseconds() > this.ftime) {
+            this.nextFrame ();
+        }
+
+        return this;
+    };
+
+
+    Sprite.prototype.draw = function(c, drawShadow, degrees) {
+
+        c = c || this.target;
+
+        if (this.shown) {
+
+            if (drawShadow !== undefined && drawShadow) {
+
+                if (this.shadow === null) { // Shadow not created yet
+
+                    var sCnv = document.createElement("canvas");
+                    var sCtx = sCnv.getContext("2d");
+
+                    sCnv.width = this.width;
+                    sCnv.height = this.height;
+
+                    sCtx.drawImage(this.spritesheet,
+                                   this.offsetX,
+                                   this.offsetY,
+                                   this.width,
+                                   this.height,
+                                   0,
+                                   0,
+                                   this.width * this.zoomLevel,
+                                   this.height * this.zoomLevel);
+
+                    var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
+
+                    for (var i = 0, len = idata.data.length; i < len; i += 4) {
+                        idata.data[i] = 0; // R
+                        idata.data[i + 1] = 0; // G
+                        idata.data[i + 2] = 0; // B
+                    }
+
+                    sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
+                    sCtx.putImageData(idata, 0, 0);
+
+                    this.shadow = sCtx;
+                }
+
+                c.save();
+                c.globalAlpha = 0.1;
+
+                var sw = this.width * this.zoomLevel;
+                var sh = this.height * this.zoomLevel;
+
+                c.drawImage(this.shadow.canvas, this.posX, this.posY - sh, sw, sh * 2);
+                c.restore();
+            }
+
+            c.drawImage(this.spritesheet,
+                        this.offsetX,
+                        this.offsetY,
+                        this.width,
+                        this.height,
+                        this.posX,
+                        this.posY,
+                        this.width * this.zoomLevel,
+                        this.height * this.zoomLevel);
+        }
+
+        return this;
+    };
 
 }(window.Tilekit));
 // Entity
@@ -955,71 +762,56 @@
     $.extend(TK.Entity.prototype, window.EventEmitter2.prototype);
 
 }(window.Tilekit));
-// Geometry Helpers
-//-------------------------------------------------- //
+// A Class For All Tiles
+// -------------------------------------------------- //
 
-var Geo = {};
+(function(Tilekit) {
 
-Geo.toRadians = function(degrees) {
-    return degrees * (Math.PI/180);
-};
+    var round = Math.round;
 
-Geo.findAngle = function(point1, point2) {
+    Tilekit.Tile = window.klass({
 
-    if (point1.isArray) {
-        point1 = { x: point1[0], y: point1[1] };
-    }
+        x: 0, y: 0,
+        width: 32, height: 32,
+        layers: [],
 
-    if (point2.isArray) {
-        point2 = { x: point2[0], y: point2[1] };
-    }
+        initialize: function(options) {
+            $.extend(this, options);
+        },
 
-    var angle = Math.atan2(point2.y - point1.y, point2.x - point1.x) * (180 / Math.PI);
+        isTraversable: function() {
 
-    return angle < 0 ? angle + 360: angle;
-};
+            if (this.__blockOnce) {
+                this.__blockOnce = undefined;
+                return false;
+            }
 
-Geo.findPoint = function(point, distance, angle, round) {
+            return this.layers[1] === undefined || this.layers[1] === 0;
 
-    round = round || 100;
+        },
 
-    var rads = Geo.toRadians(angle);
+        isBlocking: function() {
+            return this.layers[1] > 0;
+        }
 
-    return {
-        x: point.x + distance * ~~(Math.cos(rads) * round) / round,
-        y: point.y + distance * ~~(Math.sin(rads) * round) / round
-    };
+    });
 
-};
 
-Geo.findDistance = function(point1, point2) {
+    // Calculations
+    // -------------------------------------------------- //
 
-    var distX    = Math.pow(point2.x - point1.x, 2),
-        distY    = Math.pow(point2.y - point1.y, 2),
-        distance = Math.sqrt(distX + distY);
+    Tilekit.Tile.methods({
 
-    return distance;
+        roundedTile: function() {
+            return {
+                x : round(this.tile.x),
+                y : round(this.tile.y)
+            };
+        }
 
-};
+    });
 
-Geo.isWithinCone = function(center, point, radius, angle, cone) {
-
-    var trajectory = Geo.findAngle(point, center),
-        distance   = Geo.findDistance(center, point);
-
-    if (distance >= radius) {
-        return false;
-    }
-
-    // 1. The angle from the center through point should be between the cone
-    if (angle - cone >= trajectory || trajectory >= angle + cone) {
-        return false;
-    }
-
-    // 2. The distance from centerX,centerY to X,Y should be less then the Radius
-    return true;
-
-};
+}(window.Tilekit));
 // The Grid
 //
 // EVENTS:
@@ -1657,807 +1449,6 @@ Geo.isWithinCone = function(center, point, radius, angle, cone) {
     });
 
 }(window, window.Tilekit));
-// Helpers
-//= require ./geo
-// -------------------------------------------------- //
-
-Array.prototype.isArray = true;
-
-Function.prototype.pulse = function(interval, args, scope) {
-    var self = this;
-    this.__interval = setInterval(function() {
-        self.apply(scope || self, args);
-    }, interval || 1000);
-};
-
-// Rounds to a given number
-Number.prototype.roundTo = function roundTo (to) {
-
-    if (this < to / 2) {
-        return 0;
-    }
-
-    var amount = to * Math.round(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Floors to a given number
-Number.prototype.floorTo = function (to) {
-
-    if (this < to) {
-        return 0;
-    }
-
-    var amount = to * Math.floor(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Ceils to a given number
-Number.prototype.ceilTo = function roundTo (to) {
-
-    if (this < to) {
-        return to;
-    }
-
-    var amount = to * Math.ceil(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Given a number, iterate over the absolute value
-Number.prototype.times = function(cb, scope) {
-
-    if (this === 0) {
-        return;
-    }
-    
-    var i = ~~Math.abs(this),
-        n = 0;
-    
-    do { 
-        cb.apply(scope || this, [n]); 
-        i--;
-        n++;
-    } while(i > 0);
-
-};
-
-// Simple "trim" Polyfill
-String.prototype.trim = String.prototype.trim || function() {
-    return this.replace(/^\s+|\s+$/g,"");
-};
-
-
-// Request Animation Frame Polyfill
-// -------------------------------------------------- //
-
-if (typeof window !== 'undefined') {
-    
-    window.requestAnimationFrame = (function(){
-        
-        return window.requestAnimationFrame    || 
-            window.webkitRequestAnimationFrame || 
-            window.mozRequestAnimationFrame    || 
-            window.oRequestAnimationFrame      || 
-            window.msRequestAnimationFrame     || 
-            function( callback ) {
-                window.setTimeout(callback, 1000 / 60);
-            };
-
-    }());
-}
-
-
-// Bind Polyfill
-// -------------------------------------------------- //
-
-if (!Function.prototype.bind) {
-
-    Function.prototype.bind = function (oThis) {
-        if (typeof this !== "function") {
-            // closest thing possible to the ECMAScript 5 internal IsCallable function
-            throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
-        }
-
-        var aArgs = Array.prototype.slice.call(arguments, 1), 
-            fToBind = this, 
-            FNOP = function () {},
-            fBound = function () {
-                return fToBind.apply(this instanceof FNOP ? this : oThis,
-                                     aArgs.concat(Array.prototype.slice.call(arguments)));
-            };
-
-        FNOP.prototype = this.prototype;
-        fBound.prototype = new FNOP();
-
-        return fBound;
-    };
-
-}
-
-
-// Math Helpers
-// -------------------------------------------------- //
-
-Math.percentChance = function(val, callback) {
-    if (Math.random() < val / 100) {
-        callback();
-    }
-};
-
-Math.parseDelta = function(number, total) {
-
-    if (/\%/.test(number)) {
-        return total * (parseFloat(number, 10) / 100);
-    }
-
-    if (/\+|\-/.test(number)) {
-        return total + parseFloat(number, 10);
-    }
-    
-    return number;
-};
-
-
-// Formatting helpers
-// -------------------------------------------------- //
-
-var Format = {};
-
-Format.align = function(orientation, segment, total, offset) {
-
-    if (/bottom|right/ig.test(orientation)) {
-        return (total - offset) - segment;
-    } else {
-        return offset;
-    }
-    
-};
-// The Tilekit Namespace
-// -------------------------------------------------- //
-
-window.Tilekit = {
-    debug: false
-};
-
-$.extend(window.Tilekit.prototype, new window.EventEmitter2());
-
-window.TK = window.Tilekit;
-// Primitives.js
-// A collection of shape helpers for canvas
-
-// The Rectangle
-// -------------------------------------------------- //
-
-var Rectangle = function(canvas, options) {
-
-    var self = this,
-        te = options.tileEngine;
-
-    $.extend(this, {
-        x      : 0,
-        y      : 0,
-        stroke : null,
-        fill   : null,
-        width  : 100,
-        height : 100
-    }, options);
-    
-    this.canvas = canvas;
-    this.c = this.canvas.getContext('2d');
-
-    if (te) {
-
-        te.on("refresh", function() {
-            window.requestAnimationFrame(function() {
-                self.draw();
-            });
-        });
-
-    }
-
-    // Render the rectangle
-    this.draw = function() {
-
-        var posX = this.x,
-            posY = this.y;
-        
-        if (this.tile) {
-            
-            var te     = this.tileEngine,
-                canvas = this.canvas,
-                tile   = te.tile,
-                size   = te.get("size"),
-                scroll = te.get("scroll"),
-                deltaX = (canvas.width / 2) - (size / 2),
-                deltaY = (canvas.height / 2) - (size / 2);
-            
-            posX = this.tile.x * size;
-            posY = this.tile.y * size;
-            
-            posX += (deltaX) - (scroll.x * 2);
-            posY += (deltaY) - (scroll.y * 2);
-        }
-
-        // If we have a fill color, create a solid color rectangle
-        if (this.fill) {
-            this.c.fillStyle = this.fill;
-            this.c.fillRect(posX, posY, this.width, this.height);
-        }
-        
-        // If a stroke color has been specified, create a stroke
-        // rectangle on top of the fill rectangle
-        if (this.stroke) {
-            this.c.strokeStyle = this.stroke;
-            this.c.strokeRect(posX, posY, this.width, this.height);
-        }
-
-    };
-    
-    return this;
-};
-
-// Scene.js
-// 
-//= require tilekit/text
-//= require tilekit/grid
-// -------------------------------------------------- //
-
-(function(Tilekit) {
-    
-    var Character = Tilekit.Character,
-        TextBox = window.Textbox;
-    
-    var Scene = Tilekit.Scene = window.klass(function(options) {
-
-        options = options || {};
-        
-        $.extend(this, {
-            grid: false,
-            units: []
-        }, options);
-
-        this.add(options);
-
-    });
-
-    // Add a player to the map
-    Scene.prototype.add = function(options) {
-
-        var slot = 0, c;
-
-        // Handle multiple entries
-        // -------------------------------------------------- //
-
-        if ($.isArray(options)) {
-
-            while (options[slot]) {
-
-                c = options[slot];
-                
-                c.tile = c.tile || {
-                    x: c.x || 0, 
-                    y: c.y || 0
-                };
-
-                this.add(c);
-                slot++;
-            }
-
-            return;
-        }
-
-        // Handle single entries
-        // -------------------------------------------------- //
-        
-        options = $.extend({}, {
-            image: "/assets/players/default.png",
-            tile: {
-                x: options.x || 0,
-                y: options.y || 0
-            }
-        }, options);
-        
-        c = this.units[options.name] = new Character(options.name, this, options);
-
-        return c;
-
-    };
-
-    // Remove players from map
-    Scene.prototype.remove = function(name) {
-
-        if (!this.units[name]) {
-            return;
-        }
-
-        this.units[name].remove();
-
-        delete this.units[name];
-    };
-
-    // Messaging
-    // -------------------------------------------------- //
-
-    Scene.prototype.message = function(header, message, callback) {
-        
-        var grid = this.grid;
-
-        callback = callback || function(){};
-        
-        // Okay, now generate the new message
-        this.grid.addLayer("message", function(ctx, date) {
-            
-            var text = new TextBox({
-                header: header,
-                subheader: new Array(header.length + 3).join("-"),
-                body: message,
-                context: grid.c
-            });
-
-            text.draw.apply(text);
-        });
-
-        $(window).one("keydown", function remove(e) {
-            grid.removeLayer("message");
-            callback(e);
-            return false;
-        });        
-
-    };
-
-
-    // Querying
-    // -------------------------------------------------- //
-
-    Scene.prototype.find = function(condition) {
-        
-        var result;
-
-        for (var u in this.units) {
-            if (condition(this.units[u])) {
-                return result;
-            }
-        }
-
-        return false;
-
-    };
-
-    // Find a character at a specific tile
-    Scene.prototype.findAt = function(tile, callback) {
-
-        var tile2;
-
-        for (var c in this.units) {
-            
-            tile2 = this.units[c].tile;
-
-            if (tile.x === tile2.x && tile.y === tile2.y) {
-                
-                if (callback) {
-                    callback(this.units[c]);
-                } else {
-                    return this.units[c];
-                }
-            }
-
-        }
-
-    };
-
-
-    // JSON Operations
-    // -------------------------------------------------- //
-
-    // GET
-    Scene.prototype.fetch = function(url, callback) {
-        
-        $.get(url, function(data) {
-            callback(data);
-        });
-
-        return {
-            then: function(fn) {
-                callback = fn;
-            }
-        };
-
-    };
-
-}(window.Tilekit));
-// A generic sprite class
-// -------------------------------------------------- //
-
-(function(Tilekit) {
-
-    var Sprite = Tilekit.Sprite = function(src, width, height, offsetX, offsetY, frames, duration, target) {
-
-        this.spritesheet = null;
-        this.offsetX = 0;
-        this.offsetY = 0;
-        this.width = width;
-        this.height = height;
-        this.frames = 1;
-        this.currentFrame = 0;
-        this.duration = 1;
-        this.posX = 0;
-        this.posY = 0;
-        this.shown = true;
-        this.zoomLevel = 1;
-        this.shadow = null;
-
-        this.setSpritesheet(src);
-        this.setOffset(offsetX, offsetY);
-        this.setFrames(frames);
-        this.setDuration(duration);
-
-        this.target = target;
-
-        this.timer = new window.Timer();
-        this.created_at = Date.now();
-
-        var d = new Date();
-
-        if (this.duration > 0 && this.frames > 0) {
-            this.ftime = d.getTime() + (this.duration / this.frames);
-        } else {
-            this.ftime = 0;
-        }
-
-    };
-
-    Sprite.prototype.setSpritesheet = function(src) {
-        if (src instanceof Image) {
-            this.spritesheet = src;
-        } else {
-            this.spritesheet = new Image();
-            this.spritesheet.src = src;
-        }
-
-        return this;
-    };
-
-    Sprite.prototype.setPosition = function(x, y) {
-        this.posX = x;
-        this.posY = y;
-
-        return this;
-    };
-
-    Sprite.prototype.setOffset = function(x, y) {
-        this.offsetX = x;
-        this.offsetY = y;
-
-        return this;
-    };
-
-    Sprite.prototype.setFrames = function(fcount) {
-        this.currentFrame = 0;
-        this.frames = fcount;
-
-        return this;
-    };
-
-    Sprite.prototype.setDuration = function(duration) {
-        this.duration = duration;
-
-        return this;
-    };
-
-    Sprite.prototype.nextFrame = function() {
-
-        if (this.duration > 0) {
-
-            var d = new Date();
-
-            if (this.duration > 0 && this.frames > 0) {
-                this.ftime = d.getTime() + (this.duration / this.frames);
-            } else {
-                this.ftime = 0;
-            }
-
-            this.offsetX = this.width * this.currentFrame;
-
-            if (this.currentFrame === (this.frames - 1)) {
-                this.currentFrame = 0;
-            } else {
-                this.currentFrame++;
-            }
-
-        }
-
-        return this;
-    };
-
-    Sprite.prototype.animate = function(t) {
-
-        // Default to the sprites native timer
-        t = t || this.timer;
-
-        t.update();
-
-        if (t.getMilliseconds() > this.ftime) {
-            this.nextFrame ();
-        }
-
-        return this;
-    };
-
-
-    Sprite.prototype.draw = function(c, drawShadow, degrees) {
-
-        c = c || this.target;
-
-        if (this.shown) {
-
-            if (drawShadow !== undefined && drawShadow) {
-
-                if (this.shadow === null) { // Shadow not created yet
-
-                    var sCnv = document.createElement("canvas");
-                    var sCtx = sCnv.getContext("2d");
-
-                    sCnv.width = this.width;
-                    sCnv.height = this.height;
-
-                    sCtx.drawImage(this.spritesheet,
-                                   this.offsetX,
-                                   this.offsetY,
-                                   this.width,
-                                   this.height,
-                                   0,
-                                   0,
-                                   this.width * this.zoomLevel,
-                                   this.height * this.zoomLevel);
-
-                    var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
-
-                    for (var i = 0, len = idata.data.length; i < len; i += 4) {
-                        idata.data[i] = 0; // R
-                        idata.data[i + 1] = 0; // G
-                        idata.data[i + 2] = 0; // B
-                    }
-
-                    sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
-                    sCtx.putImageData(idata, 0, 0);
-
-                    this.shadow = sCtx;
-                }
-
-                c.save();
-                c.globalAlpha = 0.1;
-
-                var sw = this.width * this.zoomLevel;
-                var sh = this.height * this.zoomLevel;
-
-                c.drawImage(this.shadow.canvas, this.posX, this.posY - sh, sw, sh * 2);
-                c.restore();
-            }
-
-            c.drawImage(this.spritesheet,
-                        this.offsetX,
-                        this.offsetY,
-                        this.width,
-                        this.height,
-                        this.posX,
-                        this.posY,
-                        this.width * this.zoomLevel,
-                        this.height * this.zoomLevel);
-        }
-
-        return this;
-    };
-
-}(window.Tilekit));
-// A simple text module
-
-var TextBox = function(options) {
-
-    options = options || {};
-
-    this.header     = options.header || "???";
-    this.subheader  = options.subheader || false;
-    this.body       = options.body || "";
-    this.context    = options.context;
-    this.lineheight = options.lineheight || 25;
-};
-
-TextBox.prototype.setFont = function(color, font) {
-    var ctx = this.context;
-
-    ctx.textBaseline = "top";
-    ctx.fillStyle = color;
-    ctx.font = font;
-};
-
-TextBox.prototype.drawWindow = function() {
-
-    var ctx = this.context;
-
-    ctx.fillStyle = "#f0f0f0";
-    ctx.fillRect(0,
-                 document.height - (document.height * 0.2),
-                 document.width,
-                 (document.height * 0.2));
-
-    ctx.fillStyle = "#333";
-    ctx.fillRect(0,
-                 document.height - (document.height * 0.2) - 2,
-                 document.width, 2);
-
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0,
-                 document.height - (document.height * 0.2) + 1,
-                 document.width,
-                 1);
-
-};
-
-TextBox.prototype.drawText = function(text, x, y) {
-
-    this.context.fillText(text,
-                          (document.width * 0.1) + (x || 0),
-                          (document.height - (document.height * 0.2)) + (y || 0)
-                         );
-};
-
-TextBox.prototype.drawEllipsis = function() {
-
-    var ctx = this.context,
-        width = document.width * 0.93,
-        height = document.height - (document.height * 0.05);
-
-    ctx.fillStyle = "#333";
-    ctx.fillRect(width,
-                 height,
-                 5, 5);
-    ctx.fillRect(width + 10,
-                 height,
-                 5, 5);
-    ctx.fillRect(width + 20,
-                 height,
-                 5, 5);
-};
-
-TextBox.prototype.draw = function() {
-
-    var ctx = this.context,
-        self = this;
-
-    this.drawWindow();
-
-
-    // The Message header
-    // -------------------------------------------------- //
-
-    this.setFont("black", "bold 14pt monospace");
-    this.drawText(this.header, 0, 15);
-
-    if (this.subheader) {
-        this.setFont("#666", "normal 10pt monospace");
-        this.drawText(this.subheader, 0, 40);
-    }
-
-    // The Message Contents
-    // -------------------------------------------------- //
-
-    this.setFont("#333", "normal 14pt monospace");
-
-    var pixelLength = 0,
-        words = this.body.split(" "),
-        line = 70, // 70 for the base pixel offset
-        i = 0, word = "", measure = 0;
-
-    while(words[i]) {
-        word = words[i];
-        measure = ctx.measureText(word + " ").width;
-
-        if (pixelLength + measure > document.width * 0.85) {
-            pixelLength = 0;
-            line += this.lineheight;
-        }
-
-        if (line > (document.height * 0.2) - (document.height * 0.05)) {
-            return;
-        }
-
-        self.drawText(word, pixelLength, line);
-
-        pixelLength += ctx.measureText(word + " ").width;
-
-        i++;
-    }
-
-    this.drawEllipsis();
-
-    return;
-
-};
-// A Class For All Tiles
-// -------------------------------------------------- //
-
-(function(Tilekit) {
-
-    var round = Math.round;
-
-    Tilekit.Tile = window.klass({
-
-        x: 0, y: 0,
-        width: 32, height: 32,
-        layers: [],
-
-        initialize: function(options) {
-            $.extend(this, options);
-        },
-
-        isTraversable: function() {
-
-            if (this.__blockOnce) {
-                this.__blockOnce = undefined;
-                return false;
-            }
-
-            return this.layers[1] === undefined || this.layers[1] === 0;
-
-        },
-
-        isBlocking: function() {
-            return this.layers[1] > 0;
-        }
-
-    });
-
-
-    // Calculations
-    // -------------------------------------------------- //
-
-    Tilekit.Tile.methods({
-
-        roundedTile: function() {
-            return {
-                x : round(this.tile.x),
-                y : round(this.tile.y)
-            };
-        }
-
-    });
-
-}(window.Tilekit));
-/**
- * A simple timer
- */
-
-var Timer = function() {
-    this.date = new Date();
-};
-
-Timer.prototype.update = function() {
-    var d = new Date();
-    this.date = d;
-};
-
-Timer.prototype.getMilliseconds = function() {
-    return this.date.getTime();
-};
-
-Timer.prototype.getSeconds = function() {
-    return Math.round(this.date.getTime() / 1000);
-};
 // Unit.js
 //
 // EVENTS:
@@ -2898,5 +1889,272 @@ Timer.prototype.getSeconds = function() {
             return blocked;
         }
     });
+
+}(window.Tilekit));
+// Character.js
+//
+// EVENTS:
+//
+// "blocked" - when movement is prohibited by terrain
+// "collision" - when movement is prohibited by other units
+// "see" - when another object comes into visual range
+// "hear" - when another object comes into hearing range
+// "refresh" - when the sprite is redrawn
+// "change" - when an attribute is changed
+//
+// -------------------------------------------------- //
+
+(function(Tilekit) {
+
+    var Character = Tilekit.Character = Tilekit.Unit.extend({
+
+        attributes: {
+            comment: "",
+            emote: "",
+            speed: 2,
+            face: 270,
+            hearing: 64,
+            vision: 96,
+            visionCone: 30
+        },
+
+        showName: false,
+
+        initialize: function(name, scene, options) {
+            this.supr(name, scene, options);
+            var size = scene.grid.get("size");
+            this.emote_sprite = new Tilekit.Sprite("/assets/emotes.png", size, size, 0, 0);
+        },
+
+        layers: {
+
+            emote: function() {
+
+                var emote = this.emote_sprite,
+                    pos   = this.get("position"),
+                    size  = this.grid.get('size'),
+                    which = {
+
+                        // Emotions
+                        "surprised" : [0, 0],
+                        "sad"       : [32, 0],
+                        "love"      : [64, 0],
+                        "power"     : [96, 0],
+                        "happy"     : [128, 0],
+                        "disguise"  : [160, 0],
+
+                        // Events
+                        "poison"    : [0, 32],
+                        "quest"     : [32, 32],
+                        "idea"      : [64, 32],
+
+                        // Sense
+                        "see"       : [0, 64],
+                        "hear"      : [32, 64]
+
+                    }[this.get("emote")] || false;
+
+                if (!which) {
+                    return false;
+                }
+
+                emote.setPosition(pos.x, pos.y - (size + (Math.cos( Date.now() / 500) * 2) ) );
+                emote.setOffset( which[0], which[1] );
+                emote.draw(this.ctx);
+
+            },
+
+            renderName: function() {
+
+                if (!this.showName) {
+                    return;
+                }
+
+                var c = this.ctx,
+                    name = this.get("name");
+
+                c.font = "15px monospace";
+                c.fillStyle = "#000";
+
+                var textWidth = this.ctx.measureText(name).width;
+
+                c.fillText(name,
+                           (this.tile.x * 32) - (textWidth / 10),
+                           (this.tile.y * 31)
+                          );
+            }
+
+        }
+
+    });
+
+}(window.Tilekit));
+// Scene.js
+// 
+//= require tilekit/text
+//= require tilekit/grid
+// -------------------------------------------------- //
+
+(function(Tilekit) {
+    
+    var Character = Tilekit.Character,
+        TextBox = window.Textbox;
+    
+    var Scene = Tilekit.Scene = window.klass(function(options) {
+
+        options = options || {};
+        
+        $.extend(this, {
+            grid: false,
+            units: []
+        }, options);
+
+        this.add(options);
+
+    });
+
+    // Add a player to the map
+    Scene.prototype.add = function(options) {
+
+        var slot = 0, c;
+
+        // Handle multiple entries
+        // -------------------------------------------------- //
+
+        if ($.isArray(options)) {
+
+            while (options[slot]) {
+
+                c = options[slot];
+                
+                c.tile = c.tile || {
+                    x: c.x || 0, 
+                    y: c.y || 0
+                };
+
+                this.add(c);
+                slot++;
+            }
+
+            return;
+        }
+
+        // Handle single entries
+        // -------------------------------------------------- //
+        
+        options = $.extend({}, {
+            image: "/assets/players/default.png",
+            tile: {
+                x: options.x || 0,
+                y: options.y || 0
+            }
+        }, options);
+        
+        c = this.units[options.name] = new Character(options.name, this, options);
+
+        return c;
+
+    };
+
+    // Remove players from map
+    Scene.prototype.remove = function(name) {
+
+        if (!this.units[name]) {
+            return;
+        }
+
+        this.units[name].remove();
+
+        delete this.units[name];
+    };
+
+    // Messaging
+    // -------------------------------------------------- //
+
+    Scene.prototype.message = function(header, message, callback) {
+        
+        var grid = this.grid;
+
+        callback = callback || function(){};
+        
+        // Okay, now generate the new message
+        this.grid.addLayer("message", function(ctx, date) {
+            
+            var text = new TextBox({
+                header: header,
+                subheader: new Array(header.length + 3).join("-"),
+                body: message,
+                context: grid.c
+            });
+
+            text.draw.apply(text);
+        });
+
+        $(window).one("keydown", function remove(e) {
+            grid.removeLayer("message");
+            callback(e);
+            return false;
+        });        
+
+    };
+
+
+    // Querying
+    // -------------------------------------------------- //
+
+    Scene.prototype.find = function(condition) {
+        
+        var result;
+
+        for (var u in this.units) {
+            if (condition(this.units[u])) {
+                return result;
+            }
+        }
+
+        return false;
+
+    };
+
+    // Find a character at a specific tile
+    Scene.prototype.findAt = function(tile, callback) {
+
+        var tile2;
+
+        for (var c in this.units) {
+            
+            tile2 = this.units[c].tile;
+
+            if (tile.x === tile2.x && tile.y === tile2.y) {
+                
+                if (callback) {
+                    callback(this.units[c]);
+                } else {
+                    return this.units[c];
+                }
+            }
+
+        }
+
+    };
+
+
+    // JSON Operations
+    // -------------------------------------------------- //
+
+    // GET
+    Scene.prototype.fetch = function(url, callback) {
+        
+        $.get(url, function(data) {
+            callback(data);
+        });
+
+        return {
+            then: function(fn) {
+                callback = fn;
+            }
+        };
+
+    };
 
 }(window.Tilekit));

@@ -1,12 +1,14 @@
 // Helpers tests
 // -------------------------------------------------- //
 
+global.window = {};
+
 require("chai").should();
-require("../helpers");
+require("../src/helpers");
 
 describe("Geo", function() {
     
-    require("../geo");
+    require("../src/geo");
     
     it("should convert degrees to radians", function() {
         Geo.toRadians(90).should.equal(Math.PI / 2);

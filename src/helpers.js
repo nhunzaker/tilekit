@@ -157,14 +157,23 @@ Math.parseDelta = function(number, total) {
 // Formatting helpers
 // -------------------------------------------------- //
 
-var Format = {};
+(function() {
+    var Format = window.Format = {};
 
-Format.align = function(orientation, segment, total, offset) {
+    Format.align = function(orientation, segment, total, offset) {
 
-    if (/bottom|right/ig.test(orientation)) {
-        return (total - offset) - segment;
+        if (/bottom|right/ig.test(orientation)) {
+            return (total - offset) - segment;
+        } else {
+            return offset;
+        }
+        
+    };
+
+    if (typeof module !== 'undefined') {
+        global.Format = Format;
     } else {
-        return offset;
+        window.Format = Format;
     }
-    
-};
+
+}());

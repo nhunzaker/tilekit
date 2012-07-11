@@ -21,15 +21,17 @@ module.exports = function(grunt) {
                 'src/namespace.js',
                 'src/helpers.js',
                 'src/geo.js',
+                'src/primitives.js',
+                'src/textbox.js',
                 'src/timer.js',
                 'src/sprite.js',
                 'src/entity.js',
-                'src/primitives.js',
                 'src/tile.js',
                 'src/grid.js',
                 'src/unit.js',
                 'src/character.js',
-                'src/scene.js'
+                'src/scene.js',
+                'src/**/*.js'
             ]
         },
 
@@ -70,7 +72,8 @@ module.exports = function(grunt) {
                 undef: true,
                 boss: true,
                 eqnull: true,
-                browser: true
+                browser: true,
+                node: true
             },
 
             globals: {
