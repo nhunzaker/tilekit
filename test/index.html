@@ -1,0 +1,50 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Mocha Tests</title>
+
+        <link rel="stylesheet" href="node_modules/mocha/mocha.css" />
+
+        <script src="node_modules/mocha/mocha.js"></script>
+        <script src="node_modules/chai/chai.js"></script>
+        
+        <script>mocha.setup('bdd')</script>
+
+        <script src="../tilekit.js"></script>
+
+        <script src="test.number.js"></script>
+        <script src="test.string.js"></script>
+        <script src="test.math.js"></script>
+        <script src="test.geometry.js"></script>
+
+        <script src="test.tilekit.js"></script>
+
+        <script src="test.timer.js"></script>
+        <script src="test.sprite.js"></script>
+
+        <script src="test.entity.js"></script>
+        <script src="test.tile.js"></script>
+        <script src="test.grid.js"></script>
+
+    </head>
+
+    <body>
+
+        <div id="mocha"></div>
+
+        <script>
+
+            // Chai --------------------------------------------- //
+
+            chai.should();
+            var expect = chai.expect
+
+            // Mocha -------------------------------------------- //
+
+            mocha.run();
+
+        </script>
+
+    </body>
+
+</html>

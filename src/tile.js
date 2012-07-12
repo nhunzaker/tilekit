@@ -12,7 +12,7 @@
         layers: [],
 
         initialize: function(options) {
-            $.extend(this, options);
+            Tilekit.extend(this, options);
         },
 
         isTraversable: function() {

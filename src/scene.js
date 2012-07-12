@@ -14,11 +14,14 @@
         options = options || {};
         
         $.extend(this, {
-            grid: false,
             units: []
         }, options);
 
-        this.add(options);
+        this.grid = options.grid;
+
+        if (this.units.length) {
+            this.add(this.units);
+        }
 
     });
 

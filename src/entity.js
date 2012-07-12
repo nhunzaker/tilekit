@@ -13,8 +13,9 @@
         attributes: {},
         layers: {},
 
-        initialize: function(options) {
-            this.attributes = $.extend(true, this.attributes, options);
+        initialize: function(options, layers) {
+            this.attributes = TK.extend({}, this.attributes, options);
+            this.layers     = TK.extend({}, this.layers, layers);
         },
 
         // Getters and Setters
@@ -84,6 +85,6 @@
 
     });
 
-    $.extend(TK.Entity.prototype, window.EventEmitter2.prototype);
+    TK.extend(TK.Entity.prototype, window.EventEmitter2.prototype);
 
 }(window.Tilekit));

@@ -2,19 +2,23 @@
  * A simple timer
  */
 
-var Timer = function() {
-    this.date = new Date();
-};
+(function(Tilekit) {
 
-Timer.prototype.update = function() {
-    var d = new Date();
-    this.date = d;
-};
+    var Timer = Tilekit.Timer = function() {
+        this.date = new Date();
+    };
 
-Timer.prototype.getMilliseconds = function() {
-    return this.date.getTime();
-};
+    Timer.prototype.update = function() {
+        var d = new Date();
+        this.date = d;
+    };
 
-Timer.prototype.getSeconds = function() {
-    return Math.round(this.date.getTime() / 1000);
-};
+    Timer.prototype.getMilliseconds = function() {
+        return this.date.getTime();
+    };
+
+    Timer.prototype.getSeconds = function() {
+        return Math.round(this.date.getTime() / 1000);
+    };
+
+}(window.Tilekit));

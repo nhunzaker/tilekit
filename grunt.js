@@ -18,7 +18,7 @@ module.exports = function(grunt) {
 
         lint: {
             files: [
-                'src/namespace.js',
+                'src/main.js',
                 'src/helpers.js',
                 'src/geo.js',
                 'src/primitives.js',
@@ -30,8 +30,7 @@ module.exports = function(grunt) {
                 'src/grid.js',
                 'src/unit.js',
                 'src/character.js',
-                'src/scene.js',
-                'src/**/*.js'
+                'src/scene.js'
             ]
         },
 
@@ -40,9 +39,9 @@ module.exports = function(grunt) {
             dist: {
                 src: [
                     '<banner:meta.banner>', 
-                    'src/libs/**/*.js',
+                    './libs/**/*.js',
                     '<config:lint.files>'],
-                dest: 'tilekit.js'
+                dest: './tilekit.js'
             }
 
         },
@@ -50,7 +49,7 @@ module.exports = function(grunt) {
         min: {
             dist: {
                 src: ['<banner:meta.banner>', '<config:concat.dist.dest>'],
-                dest: 'tilekit.min.js'
+                dest: './tilekit.min.js'
             }
         },
 

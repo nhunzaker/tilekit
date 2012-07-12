@@ -18,7 +18,8 @@
         aStar = window.aStar,
         floor = Math.floor,
         ceil  = Math.ceil,
-        round = Math.round;
+        round = Math.round,
+        $ = window.jQuery;
 
     var Grid = TK.Grid = Entity.extend({
 
@@ -40,15 +41,20 @@
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = $.extend(true, this.attributes, options, {
+            this.attributes = $.extend(true, this.attributes, {
+                encoding: 24,
+                tileset : tilemap.tileset
+            }, options, {
                 created_at: Date.now()
             });
+            
+            if (typeof canvas === 'string') {
+                this.canvas = document.getElementById(canvas);
+            } else {
+                this.canvas = canvas;
+            }
 
-            this.canvas = document.getElementById(canvas);
             this.ctx = this.canvas.getContext('2d');
-
-            this.tileset = tilemap.tileset;
-            this.encoding = options.encoding || 24;
 
             // Additional Onion Skin Graphics
             // -------------------------------------------------- //
@@ -80,7 +86,7 @@
 
             });
 
-            $(this.canvas).on("click mousemove mousedown mouseup",function(e) {
+            $(this.canvas).on("click mousemove mousedown mouseup", function(e) {
 
                 var size = self.get("size"),
                     center = self.findCenter();
@@ -134,7 +140,10 @@
             // Render the initial map state
             // -------------------------------------------------- //
 
-            this.generateTilemap(tilemap.data);
+            if (tilemap) {
+                this.generateTilemap(tilemap.data);
+            }
+
         }
 
     });
@@ -151,19 +160,19 @@
     Grid.methods({
 
         toJSON: function() {
-            return {
+            return TK.extend(this.attributes,{
                 name    : this.name,
-                tileset : this.tileset,
                 data    : this.encode(),
                 start_x : this.start_location.x,
                 start_y : this.start_location.y
-            };
+            });
         },
 
         encode: function encode(array) {
 
             var self = this,
                 output = "",
+                encoding = this.get("encoding"),
                 a;
 
             array = array || this.tilemap;
@@ -181,7 +190,7 @@
                     }
 
                 } else {
-                    output += a < self.encoding ? "0" + a.toString(self.encoding) : a.toString(self.encoding);
+                    output += a < encoding ? "0" + a.toString(encoding) : a.toString(encoding);
                 }
 
             }
@@ -248,13 +257,14 @@
 
             var self = this,
                 size = this.get("size"),
+                tileset = this.get("tileset"),
                 type;
 
-            this.tileSprite = new Sprite(this.tileset, size, size, 0, 0, this.stagingCtx);
+            this.tileSprite = new Sprite(tileset, size, size, 0, 0, this.stagingCtx);
 
             // Finally, we need some calculations to help the tileengine paint the map
             var sampleTileSet = new window.Image();
-            sampleTileSet.src = this.tileset;
+            sampleTileSet.src = tileset;
 
             // For interpretation, we need to know how deep the tileset runs
             // before moving to the next line
@@ -329,7 +339,11 @@
                 }
 
                 self.save();
-                self.drawPortals();
+                
+                if (TK.debug) {
+                    self.drawPortals();
+                }
+
                 self.emit("ready");
 
             };
@@ -595,7 +609,7 @@
             var original = {},
                 tilemap  = this.tilemap;
 
-            for (var a in additional) {
+            for ( var a in (additional || {}) ) {
                 if (additional.hasOwnProperty(a)) {
                     var t = additional[a].tile();
                     original[a] = tilemap[t.y][t.x].layers[1];
@@ -622,10 +636,10 @@
             }
 
             for (var b in additional) {
-                 if (additional.hasOwnProperty(b)) {
-                     var s = additional[b].tile();
-                     tilemap[s.y][s.x].layers[1] = original[b];
-                 }
+                if (additional.hasOwnProperty(b)) {
+                    var s = additional[b].tile();
+                    tilemap[s.y][s.x].layers[1] = original[b];
+                }
             }
 
             return points;

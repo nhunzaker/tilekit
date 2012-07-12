@@ -3,7 +3,7 @@
 
 (function(Tilekit) {
 
-    var Sprite = Tilekit.Sprite = function(src, width, height, offsetX, offsetY, frames, duration, target) {
+    var Sprite = function(src, width, height, offsetX, offsetY, frames, duration, target) {
 
         this.spritesheet = null;
         this.offsetX = 0;
@@ -26,8 +26,9 @@
 
         this.target = target;
 
-        this.timer = new window.Timer();
-        this.created_at = Date.now();
+        this.timer = new Tilekit.Timer();
+
+        this.created_at = this.timer.getMilliseconds();
 
         var d = new Date();
 
@@ -40,6 +41,14 @@
     };
 
     Sprite.prototype.setSpritesheet = function(src) {
+        
+        // Don't duplicate work, adding needless http requests for
+        // the same image
+
+        if (this.spritesheet instanceof Image && this.spritesheet.src === src) {
+            return this;
+        }
+        
         if (src instanceof Image) {
             this.spritesheet = src;
         } else {
@@ -116,7 +125,6 @@
         return this;
     };
 
-
     Sprite.prototype.draw = function(c, drawShadow, degrees) {
 
         c = c || this.target;
@@ -180,5 +188,7 @@
 
         return this;
     };
+
+    Tilekit.Sprite = Sprite;
 
 }(window.Tilekit));

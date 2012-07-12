@@ -143,7 +143,7 @@
                         var size    = this.grid.get("size"),
                             pos     = this.get("position"),
                             hearing = this.get("hearing"),
-                            posX    = pos.x,
+                            posX    = pos.x + size / 2,
                             posY    = pos.y + (size / 2);
 
                         if (!hearing) {
