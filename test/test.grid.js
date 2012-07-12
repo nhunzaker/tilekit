@@ -3,27 +3,27 @@
 
 describe("Tilekit.Grid", function() {
 
-    var Tilekit = window.Tilekit,
-        grid;
+    var Tilekit = window.Tilekit;
     
-    // Calculations
-    // -------------------------------------------------- //
+    var grid = new Tilekit.Grid(document.createElement("canvas"), {
+        tileset : "images/tileset.png",
+        data    : "000100\n010000\n010000"
+    });
 
-    it("should be able to successfully generate a tilemap", function() {
+    it("should have tiles", function() {
         
-        grid = new Tilekit.Grid(document.createElement("canvas"), {
-            tileset : "images/tileset.png",
-            data    : "000100\n010000\n010000"
+        grid.on("ready", function() {
+            (grid.tilemap[0][0] instanceof window.Tilekit.Tile).should.equal(true);
         });
 
     });
 
-    it("should have tiles", function() {
-        (grid.tilemap[0][0] instanceof Tilekit.Tile).should.equal(true);
-    });
-
     it("can encode an array", function() {
-        grid.encode([1,2,3,4]).should.equal("01020304");
+        
+        grid.on('ready', function() {
+            grid.encode([1,2,3,4]).should.equal("01020304");
+        });
+
     });
 
     it("can find its center");
@@ -50,8 +50,17 @@ describe("Tilekit.Grid", function() {
     // -------------------------------------------------- //
 
     it("can plot a course using A*", function() {
-        var course = grid.plotCourse({ x: 2, y: 2 }, { x: 1, y: 1 });
-        course.should.deep.equal([90, 180]);
+
+        var grid = new Tilekit.Grid(document.createElement("canvas"), {
+            tileset : "images/tileset.png",
+            data    : "000100\n010000\n010000"
+        });
+        
+        grid.on("ready", function() {
+            var course = grid.plotCourse({ x: 2, y: 2 }, { x: 1, y: 1 });
+            course.should.deep.equal([90, 180]);
+        });
+
     });
 
     it("has portals");

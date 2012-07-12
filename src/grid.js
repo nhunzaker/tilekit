@@ -22,8 +22,10 @@
         $ = window.jQuery;
 
     var Grid = TK.Grid = Entity.extend({
-
+        
         attributes:{
+            encoding: 24,
+            resize: true,
             paused: false,
             scroll: {
                 x: 0,
@@ -41,44 +43,31 @@
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = $.extend(true, this.attributes, {
-                encoding: 24,
-                tileset : tilemap.tileset
+            this.attributes = TK.extend({}, this.attributes, {
+                tileset    : tilemap.tileset
             }, options, {
-                created_at: Date.now()
+                created_at : Date.now()
             });
             
-            if (typeof canvas === 'string') {
-                this.canvas = document.getElementById(canvas);
-            } else {
-                this.canvas = canvas;
-            }
-
+            this.canvas = typeof canvas === 'string' ? document.getElementById(canvas) : canvas;
             this.ctx = this.canvas.getContext('2d');
-
-            // Additional Onion Skin Graphics
-            // -------------------------------------------------- //
-
-            if (TK.debug) {
-                this.addLayer("debug", function(ctx) {
-                    var center = this.findCenter();
-                    ctx.drawImage(this.debug, center.x, center.y);
-                });
-            }
-
 
             // Event Handling
             // -------------------------------------------------- //
 
             this.on('ready', function() {
-
-                if (options.autoResize !== false) {
-                    $(window).resize(function() {
+                
+                var resize = this.get("resize"),
+                    start  = this.get("start_location");
+                
+                if (resize !== false) {
+                    window.addEventListener("resize", function() {
                         self.fillspace();
-                    }).trigger("resize");
+                    });
+                    self.fillspace();
                 }
 
-                if (self.start_location) {
+                if (start) {
                     self.panTo(options.start_location);
                 }
 
@@ -86,20 +75,34 @@
 
             });
 
-            $(this.canvas).on("click mousemove mousedown mouseup", function(e) {
+            function mouseEmit(e) {
 
-                var size = self.get("size"),
+                var size   = self.get("size"),
                     center = self.findCenter();
-
+                
                 e.tile = self.getTileAt(e.offsetX, e.offsetY);
                 e.position = {
                     x: (e.tile.x * size) + center.x,
                     y: (e.tile.y * size) + center.y
                 };
 
+                self.set("mouse", e);
                 self.emit(e.type, e);
 
+            }
+            
+            
+            // Events
+            // -------------------------------------------------- //
+
+            this.canvas.addEventListener("onContextMenu", function() {
+                return false;
             });
+            
+            this.canvas.addEventListener("click", mouseEmit);
+            this.canvas.addEventListener("mousemove", mouseEmit);
+            this.canvas.addEventListener("mousedown", mouseEmit);
+            this.canvas.addEventListener("mouseup", mouseEmit);
 
 
             // Portals
@@ -149,8 +152,8 @@
     });
 
     Grid.prototype.zoom = function(scale) {
-        this.scale = scale / 100;
-        this.c.scale(this.scale, this.scale);
+        scale = this.scale = scale / 100;
+        this.ctx.scale(scale, scale);
     };
 
 
@@ -211,8 +214,8 @@
     Grid.methods({
 
         begin: function gameLoop() {
-
-            if (this.paused) {
+            
+            if (this.attributes.paused) {
                 return false;
             }
 
@@ -231,11 +234,11 @@
         },
 
         pause: function () {
-            this.paused = true;
+            this.set("paused", true);
         },
 
         play: function () {
-            this.paused = false;
+            this.set("paused", false);
             this.begin();
         },
 
@@ -272,10 +275,11 @@
 
                 self.tilesetDepth = sampleTileSet.width / size;
                 self.tilemap = [];
-
+                
                 var map	= data.trim().split("."),
-                    offset = self.findCenter();
-
+                    offset = self.findCenter(),
+                    encoding = self.get("encoding");
+                
                 // For every layer...
 
                 for (var z = 0; map[z]; z++) {
@@ -287,7 +291,7 @@
                         for (var x = 0, row = [], segment = layer[y].trim(); segment[x]; x += 2) {
 
                             // Add the value
-                            type = parseInt(segment.slice(x, x + 2), self.encoding);
+                            type = parseInt(segment.slice(x, x + 2), encoding);
 
                             var tile = self.tilemap[y][x / 2] = self.tilemap[y][x / 2] || new Tile({
                                 x: x / 2,
@@ -360,12 +364,13 @@
 
         findCenter: function() {
 
-            var size   = this.get("size"),
-                scroll = this.get('scroll');
+            var size   = this.get("size") / 2,
+                scroll = this.get('scroll'),
+                canvas = this.canvas;
 
             return {
-                x : (this.canvas.width / 2) - (size / 2) - (scroll.x * 2),
-                y : (this.canvas.height / 2) - (size / 2) - (scroll.y * 2)
+                x : (canvas.width / 2) - size - (scroll.x * 2),
+                y : (canvas.height / 2) - size - (scroll.y * 2)
             };
 
         },
@@ -376,14 +381,11 @@
 
             var size = this.get("size");
 
-            // Get the appropriate tile
-            var col = Math.ceil(x / size),
-                row = Math.ceil(y / size);
-
             return {
-                col : col,
-                row : row
+                x : ceil(x / size),
+                y : ceil(y / size)
             };
+
         },
 
         getTileAt: function(x, y) {
@@ -472,6 +474,7 @@
 
         // Wipes the board clean
         // Mostly, this is used to take care of transparency rendering
+
         clear: function() {
             this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
             this.stagingCtx.clearRect(0,0, this.staging.width, this.staging.height);
@@ -480,20 +483,14 @@
         panTo: function(coords) {
 
             if (!coords) {
-
-                if (TK.debug) {
-                    console.error("Coordinates must be specified for panning.");
-                }
-
-                return this;
-
+                return console.error("Grid#panTo: Coordinates must be specified for panning.");
             }
 
             var size = this.get('size') / 2;
 
             this.set("scroll", {
-                x: (coords.x * size),
-                y: (coords.y * size)
+                x: round(coords.x * size),
+                y: round(coords.y * size)
             });
 
             return this;

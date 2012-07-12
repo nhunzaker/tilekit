@@ -4,13 +4,6 @@
 
 Array.prototype.isArray = true;
 
-Function.prototype.pulse = function(interval, args, scope) {
-    var self = this;
-    this.__interval = setInterval(function() {
-        self.apply(scope || self, args);
-    }, interval || 1000);
-};
-
 // Rounds to a given number
 Number.prototype.roundTo = function roundTo (to) {
 
@@ -75,11 +68,6 @@ Number.prototype.times = function(cb, scope) {
         n++;
     } while(i > 0);
 
-};
-
-// Simple "trim" Polyfill
-String.prototype.trim = String.prototype.trim || function() {
-    return this.replace(/^\s+|\s+$/g,"");
 };
 
 
@@ -157,23 +145,14 @@ Math.parseDelta = function(number, total) {
 // Formatting helpers
 // -------------------------------------------------- //
 
-(function() {
-    var Format = window.Format = {};
+var Format = window.Format = {};
 
-    Format.align = function(orientation, segment, total, offset) {
+Format.align = function(orientation, segment, total, offset) {
 
-        if (/bottom|right/ig.test(orientation)) {
-            return (total - offset) - segment;
-        } else {
-            return offset;
-        }
-        
-    };
-
-    if (typeof module !== 'undefined') {
-        global.Format = Format;
+    if (/bottom|right/ig.test(orientation)) {
+        return (total - offset) - segment;
     } else {
-        window.Format = Format;
+        return offset;
     }
-
-}());
+    
+};
