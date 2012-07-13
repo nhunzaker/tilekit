@@ -75,8 +75,8 @@ describe("Tilekit.Grid", function() {
 
             grid.fillspace();
 
-            cvs.width.should.equal(document.width.roundTo(size));
-            cvs.height.should.equal(document.height.roundTo(size));
+            cvs.width.should.equal(Math.roundTo(document.width, size));
+            cvs.height.should.equal(Math.roundTo(document.height, size));
 
         });
 

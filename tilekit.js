@@ -827,54 +827,6 @@
 
 Array.prototype.isArray = true;
 
-// Rounds to a given number
-Number.prototype.roundTo = function roundTo (to) {
-
-    if (this < to / 2) {
-        return 0;
-    }
-
-    var amount = to * Math.round(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Floors to a given number
-Number.prototype.floorTo = function (to) {
-
-    if (this < to) {
-        return 0;
-    }
-
-    var amount = to * Math.floor(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Ceils to a given number
-Number.prototype.ceilTo = function roundTo (to) {
-
-    if (this < to) {
-        return to;
-    }
-
-    var amount = to * Math.ceil(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
 // Request Animation Frame Polyfill (absolutely essential)
 // -------------------------------------------------- //
 
@@ -899,19 +851,54 @@ if (typeof window !== 'undefined') {
 // Math Helpers
 // -------------------------------------------------- //
 
-Math.parseDelta = function(number, total) {
 
-    if (/\%/.test(number)) {
-        return total * (parseFloat(number, 10) / 100);
+// Rounds to a given number
+Math.roundTo = function roundTo (num, to) {
+
+    if (num < to / 2) {
+        return 0;
     }
 
-    if (/\+|\-/.test(number)) {
-        return total + parseFloat(number, 10);
+    var amount = to * Math.round(num / to);
+
+    if (amount === 0) {
+        amount = to;
     }
-    
-    return number;
+
+    return amount;
 };
 
+// Floors to a given number
+Math.floorTo = function (num, to) {
+
+    if (num < to) {
+        return 0;
+    }
+
+    var amount = to * Math.floor(num / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
+
+// Ceils to a given number
+Math.ceilTo = function roundTo (num, to) {
+
+    if (num < to) {
+        return to;
+    }
+
+    var amount = to * Math.ceil(num / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
 
 // Formatting helpers
 // -------------------------------------------------- //
@@ -1488,16 +1475,17 @@ TextBox.prototype.draw = function() {
 
     "use strict";
 
-    var Sprite = TK.Sprite,
-        Tile   = TK.Tile,
-        Entity = TK.Entity;
+    var Sprite  = TK.Sprite,
+        Tile    = TK.Tile,
+        Entity  = TK.Entity;
 
-    var Geo   = window.Geo,
-        aStar = window.aStar,
-        floor = Math.floor,
-        ceil  = Math.ceil,
-        round = Math.round,
-        $ = window.jQuery;
+    var Geo     = window.Geo,
+        aStar   = window.aStar,
+        floor   = Math.floor,
+        floorTo = Math.floorTo,
+        ceil    = Math.ceil,
+        round   = Math.round,
+        roundTo = Math.roundTo;
 
     var Grid = TK.Grid = Entity.extend({
         
@@ -1849,8 +1837,8 @@ TextBox.prototype.draw = function() {
             y = this.canvas.height - (this.canvas.height - y) - center.y;
 
             return {
-                x: x.floorTo(size) / size,
-                y: y.floorTo(size) / size
+                x: floorTo(x, size) / size,
+                y: floorTo(y, size) / size
             };
         },
 
@@ -1884,8 +1872,8 @@ TextBox.prototype.draw = function() {
 
             var size = this.get('size');
 
-            this.canvas.width = document.width.roundTo(size);
-            this.canvas.height = document.height.roundTo(size);
+            this.canvas.width  = roundTo(document.width, size);
+            this.canvas.height = roundTo(document.height, size);
 
             return this;
         },
@@ -2048,15 +2036,18 @@ TextBox.prototype.draw = function() {
 (function(Tilekit) {
 
     "use strict";
+    
+    var Geo     = window.Geo,
+        Sprite  = Tilekit.Sprite;
 
-    var round = Math.round,
-        abs   = Math.abs,
-        PI    = Math.PI,
-        Geo   = window.Geo,
+    var round   = Math.round,
+        roundTo = Math.roundTo,
+        abs     = Math.abs,
+        PI      = Math.PI,
+
         findDistance = Geo.findDistance,
         isWithinCone = Geo.isWithinCone,
-        requestAnimationFrame = window.requestAnimationFrame,
-        Sprite = Tilekit.Sprite;
+        requestAnimationFrame = window.requestAnimationFrame;
 
     var Unit = Tilekit.Unit = Tilekit.Entity.extend({
 
@@ -2206,8 +2197,8 @@ TextBox.prototype.draw = function() {
             this.moving = false;
 
             this.set("position", {
-                x: pos.x.roundTo(size),
-                y: pos.y.roundTo(size)
+                x: roundTo(pos.x, size),
+                y: roundTo(pos.y, size)
             });
 
             var tile = this.tile();

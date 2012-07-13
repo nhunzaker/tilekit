@@ -10,16 +10,17 @@
 
     "use strict";
 
-    var Sprite = TK.Sprite,
-        Tile   = TK.Tile,
-        Entity = TK.Entity;
+    var Sprite  = TK.Sprite,
+        Tile    = TK.Tile,
+        Entity  = TK.Entity;
 
-    var Geo   = window.Geo,
-        aStar = window.aStar,
-        floor = Math.floor,
-        ceil  = Math.ceil,
-        round = Math.round,
-        $ = window.jQuery;
+    var Geo     = window.Geo,
+        aStar   = window.aStar,
+        floor   = Math.floor,
+        floorTo = Math.floorTo,
+        ceil    = Math.ceil,
+        round   = Math.round,
+        roundTo = Math.roundTo;
 
     var Grid = TK.Grid = Entity.extend({
         
@@ -371,8 +372,8 @@
             y = this.canvas.height - (this.canvas.height - y) - center.y;
 
             return {
-                x: x.floorTo(size) / size,
-                y: y.floorTo(size) / size
+                x: floorTo(x, size) / size,
+                y: floorTo(y, size) / size
             };
         },
 
@@ -406,8 +407,8 @@
 
             var size = this.get('size');
 
-            this.canvas.width = document.width.roundTo(size);
-            this.canvas.height = document.height.roundTo(size);
+            this.canvas.width  = roundTo(document.width, size);
+            this.canvas.height = roundTo(document.height, size);
 
             return this;
         },

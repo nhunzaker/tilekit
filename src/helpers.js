@@ -5,54 +5,6 @@
 
 Array.prototype.isArray = true;
 
-// Rounds to a given number
-Number.prototype.roundTo = function roundTo (to) {
-
-    if (this < to / 2) {
-        return 0;
-    }
-
-    var amount = to * Math.round(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Floors to a given number
-Number.prototype.floorTo = function (to) {
-
-    if (this < to) {
-        return 0;
-    }
-
-    var amount = to * Math.floor(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
-// Ceils to a given number
-Number.prototype.ceilTo = function roundTo (to) {
-
-    if (this < to) {
-        return to;
-    }
-
-    var amount = to * Math.ceil(this / to);
-
-    if (amount === 0) {
-        amount = to;
-    }
-
-    return amount;
-};
-
 // Request Animation Frame Polyfill (absolutely essential)
 // -------------------------------------------------- //
 
@@ -77,19 +29,54 @@ if (typeof window !== 'undefined') {
 // Math Helpers
 // -------------------------------------------------- //
 
-Math.parseDelta = function(number, total) {
 
-    if (/\%/.test(number)) {
-        return total * (parseFloat(number, 10) / 100);
+// Rounds to a given number
+Math.roundTo = function roundTo (num, to) {
+
+    if (num < to / 2) {
+        return 0;
     }
 
-    if (/\+|\-/.test(number)) {
-        return total + parseFloat(number, 10);
+    var amount = to * Math.round(num / to);
+
+    if (amount === 0) {
+        amount = to;
     }
-    
-    return number;
+
+    return amount;
 };
 
+// Floors to a given number
+Math.floorTo = function (num, to) {
+
+    if (num < to) {
+        return 0;
+    }
+
+    var amount = to * Math.floor(num / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
+
+// Ceils to a given number
+Math.ceilTo = function roundTo (num, to) {
+
+    if (num < to) {
+        return to;
+    }
+
+    var amount = to * Math.ceil(num / to);
+
+    if (amount === 0) {
+        amount = to;
+    }
+
+    return amount;
+};
 
 // Formatting helpers
 // -------------------------------------------------- //

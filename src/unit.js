@@ -13,15 +13,18 @@
 (function(Tilekit) {
 
     "use strict";
+    
+    var Geo     = window.Geo,
+        Sprite  = Tilekit.Sprite;
 
-    var round = Math.round,
-        abs   = Math.abs,
-        PI    = Math.PI,
-        Geo   = window.Geo,
+    var round   = Math.round,
+        roundTo = Math.roundTo,
+        abs     = Math.abs,
+        PI      = Math.PI,
+
         findDistance = Geo.findDistance,
         isWithinCone = Geo.isWithinCone,
-        requestAnimationFrame = window.requestAnimationFrame,
-        Sprite = Tilekit.Sprite;
+        requestAnimationFrame = window.requestAnimationFrame;
 
     var Unit = Tilekit.Unit = Tilekit.Entity.extend({
 
@@ -171,8 +174,8 @@
             this.moving = false;
 
             this.set("position", {
-                x: pos.x.roundTo(size),
-                y: pos.y.roundTo(size)
+                x: roundTo(pos.x, size),
+                y: roundTo(pos.y, size)
             });
 
             var tile = this.tile();
