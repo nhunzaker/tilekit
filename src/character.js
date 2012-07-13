@@ -33,7 +33,7 @@
 
             var size = scene.grid.get("size");
 
-            this.emote_sprite = new Tilekit.Sprite("/assets/emotes.png", size, size, 0, 0);
+            this.emote_sprite = new Tilekit.Sprite(Tilekit.defaults.emote_sprite, size, size, 0, 0);
             this.layers = Tilekit.extend(this.layers, {
 
                 emote: function() {

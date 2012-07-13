@@ -780,6 +780,11 @@
     var Tilekit = {
 
         debug: false,
+        
+        defaults: {
+            character_sprite: "character.png",
+            emote_sprite: "emote.png"
+        },
 
         each:  function(obj, iterator, context) {
 
@@ -790,12 +795,15 @@
             if (nativeForEach && obj.forEach === nativeForEach) {
                 obj.forEach(iterator, context);
             } else if (obj.length === +obj.length) {
+
                 for (var i = 0, l = obj.length; i < l; i++) {
                     if (i in obj && iterator.call(context, obj[i], i, obj) === breaker) {
                         return;
                     }
                 }
+                
             } else {
+
                 for (var key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (iterator.call(context, obj[key], key, obj) === breaker) {
@@ -803,7 +811,9 @@
                         }
                     }
                 }
+
             }
+
         },
 
         extend: function(obj) {
@@ -1512,7 +1522,30 @@ TextBox.prototype.draw = function() {
                 created_at : Date.now()
             });
             
-            this.canvas = typeof canvas === 'string' ? document.getElementById(canvas) : canvas;
+            // Let's super bulletproof our target canvas
+            // -------------------------------------------------- //
+            
+            if (typeof canvas === 'string'){
+                
+                var sel = document.querySelector(canvas);
+                
+                if (!sel) {
+                    throw new Error("Please provide either a canvas or query selector for this Grid to target");
+                }
+                
+                if (sel instanceof window.HTMLCanvasElement) {
+                    this.canvas = sel;
+                } else {
+                    this.canvas = document.createElement("canvas");
+                    sel.appendChild(this.canvas);
+                } 
+
+            } else if (canvas instanceof window.HTMLCanvasElement) {
+                this.canvas = canvas;
+            } else {
+                throw new Error("Please provide either a canvas or query selector for this Grid to target");
+            }
+            
             this.ctx = this.canvas.getContext('2d');
 
             // Event Handling
@@ -1551,17 +1584,12 @@ TextBox.prototype.draw = function() {
 
                 self.set("mouse", e);
                 self.emit(e.type, e);
-
             }
             
             
             // Events
             // -------------------------------------------------- //
 
-            this.canvas.addEventListener("onContextMenu", function() {
-                return false;
-            });
-            
             this.canvas.addEventListener("click", mouseEmit);
             this.canvas.addEventListener("mousemove", mouseEmit);
             this.canvas.addEventListener("mousedown", mouseEmit);
@@ -1980,9 +2008,16 @@ TextBox.prototype.draw = function() {
 
             for ( var a in (additional || {}) ) {
                 if (additional.hasOwnProperty(a)) {
-                    var t = additional[a].tile();
-                    original[a] = tilemap[t.y][t.x].layers[1];
-                    tilemap[t.y][t.x].layers[1] = 1;
+
+                    var t = additional[a].tile(),
+                        focus = {
+                            x: round(t.x),
+                            y: round(t.y)
+                        };
+                    
+                    original[a] = tilemap[focus.y][focus.x].layers[1];
+                    tilemap[focus.y][focus.x].layers[1] = 1;
+
                 }
             }
 
@@ -2006,8 +2041,14 @@ TextBox.prototype.draw = function() {
 
             for (var b in additional) {
                 if (additional.hasOwnProperty(b)) {
-                    var s = additional[b].tile();
-                    tilemap[s.y][s.x].layers[1] = original[b];
+
+                    var s = additional[b].tile(),
+                        undo = {
+                            x: round(s.x),
+                            y: round(s.y)
+                        };
+                    
+                    tilemap[undo.y][undo.x].layers[1] = original[b];
                 }
             }
 
@@ -2419,7 +2460,7 @@ TextBox.prototype.draw = function() {
 
             var size = scene.grid.get("size");
 
-            this.emote_sprite = new Tilekit.Sprite("/assets/emotes.png", size, size, 0, 0);
+            this.emote_sprite = new Tilekit.Sprite(Tilekit.defaults.emote_sprite, size, size, 0, 0);
             this.layers = Tilekit.extend(this.layers, {
 
                 emote: function() {
@@ -2536,7 +2577,7 @@ TextBox.prototype.draw = function() {
         // -------------------------------------------------- //
         
         options = Tilekit.extend({}, {
-            image: "/assets/players/default.png",
+            image: Tilekit.defaults.character_sprite,
             tile: {
                 x: options.x || 0,
                 y: options.y || 0

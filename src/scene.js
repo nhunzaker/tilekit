@@ -50,7 +50,7 @@
         // -------------------------------------------------- //
         
         options = Tilekit.extend({}, {
-            image: "/assets/players/default.png",
+            image: Tilekit.defaults.character_sprite,
             tile: {
                 x: options.x || 0,
                 y: options.y || 0

@@ -10,6 +10,11 @@
     var Tilekit = {
 
         debug: false,
+        
+        defaults: {
+            character_sprite: "character.png",
+            emote_sprite: "emote.png"
+        },
 
         each:  function(obj, iterator, context) {
 
@@ -20,12 +25,15 @@
             if (nativeForEach && obj.forEach === nativeForEach) {
                 obj.forEach(iterator, context);
             } else if (obj.length === +obj.length) {
+
                 for (var i = 0, l = obj.length; i < l; i++) {
                     if (i in obj && iterator.call(context, obj[i], i, obj) === breaker) {
                         return;
                     }
                 }
+                
             } else {
+
                 for (var key in obj) {
                     if (obj.hasOwnProperty(key)) {
                         if (iterator.call(context, obj[key], key, obj) === breaker) {
@@ -33,7 +41,9 @@
                         }
                     }
                 }
+
             }
+
         },
 
         extend: function(obj) {

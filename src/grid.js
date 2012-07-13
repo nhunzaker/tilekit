@@ -50,7 +50,30 @@
                 created_at : Date.now()
             });
             
-            this.canvas = typeof canvas === 'string' ? document.getElementById(canvas) : canvas;
+            // Let's super bulletproof our target canvas
+            // -------------------------------------------------- //
+            
+            if (typeof canvas === 'string'){
+                
+                var sel = document.querySelector(canvas);
+                
+                if (!sel) {
+                    throw new Error("Please provide either a canvas or query selector for this Grid to target");
+                }
+                
+                if (sel instanceof window.HTMLCanvasElement) {
+                    this.canvas = sel;
+                } else {
+                    this.canvas = document.createElement("canvas");
+                    sel.appendChild(this.canvas);
+                } 
+
+            } else if (canvas instanceof window.HTMLCanvasElement) {
+                this.canvas = canvas;
+            } else {
+                throw new Error("Please provide either a canvas or query selector for this Grid to target");
+            }
+            
             this.ctx = this.canvas.getContext('2d');
 
             // Event Handling
@@ -89,17 +112,12 @@
 
                 self.set("mouse", e);
                 self.emit(e.type, e);
-
             }
             
             
             // Events
             // -------------------------------------------------- //
 
-            this.canvas.addEventListener("onContextMenu", function() {
-                return false;
-            });
-            
             this.canvas.addEventListener("click", mouseEmit);
             this.canvas.addEventListener("mousemove", mouseEmit);
             this.canvas.addEventListener("mousedown", mouseEmit);
@@ -518,9 +536,16 @@
 
             for ( var a in (additional || {}) ) {
                 if (additional.hasOwnProperty(a)) {
-                    var t = additional[a].tile();
-                    original[a] = tilemap[t.y][t.x].layers[1];
-                    tilemap[t.y][t.x].layers[1] = 1;
+
+                    var t = additional[a].tile(),
+                        focus = {
+                            x: round(t.x),
+                            y: round(t.y)
+                        };
+                    
+                    original[a] = tilemap[focus.y][focus.x].layers[1];
+                    tilemap[focus.y][focus.x].layers[1] = 1;
+
                 }
             }
 
@@ -544,8 +569,14 @@
 
             for (var b in additional) {
                 if (additional.hasOwnProperty(b)) {
-                    var s = additional[b].tile();
-                    tilemap[s.y][s.x].layers[1] = original[b];
+
+                    var s = additional[b].tile(),
+                        undo = {
+                            x: round(s.x),
+                            y: round(s.y)
+                        };
+                    
+                    tilemap[undo.y][undo.x].layers[1] = original[b];
                 }
             }
 
