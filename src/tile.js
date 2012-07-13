@@ -4,11 +4,14 @@
 (function(Tilekit) {
 
     var round = Math.round;
-
+    
     var Tile = window.klass({
 
-        x: 0, y: 0,
-        width: 32, height: 32,
+        x: 0, 
+        y: 0,
+        width: 32, 
+        height: 32,
+        
         layers: [],
 
         initialize: function(options) {
@@ -16,14 +19,7 @@
         },
 
         isTraversable: function() {
-
-            if (this.__blockOnce) {
-                this.__blockOnce = undefined;
-                return false;
-            }
-
             return this.layers[1] === undefined || this.layers[1] === 0;
-
         },
 
         isBlocking: function() {

@@ -79,12 +79,12 @@
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = $.extend(true, {
+            this.attributes = Tilekit.extend({}, {
                 name: name,
                 created_at: Date.now()
             }, this.attributes, options);
 
-            this.layers = $.extend({}, this.layers);
+            this.layers = Tilekit.extend({}, this.layers);
         }
 
     });

@@ -21,7 +21,6 @@ module.exports = function(grunt) {
                 'src/main.js',
                 'src/helpers.js',
                 'src/geo.js',
-                'src/primitives.js',
                 'src/textbox.js',
                 'src/timer.js',
                 'src/sprite.js',
