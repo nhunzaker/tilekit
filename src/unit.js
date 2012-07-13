@@ -25,7 +25,7 @@
 
     var Unit = Tilekit.Unit = Tilekit.Entity.extend({
 
-        attributes: {
+        defaults: {
             speed: 1,
             face: 270,
             hearing: 64,
@@ -79,7 +79,7 @@
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = Tilekit.extend({}, {
+            this.attributes = Tilekit.extend({}, this.defaults, {
                 name: name,
                 created_at: Date.now()
             }, this.attributes, options);

@@ -1494,15 +1494,17 @@ TextBox.prototype.draw = function() {
     
     var Tile = window.klass({
 
-        x: 0, 
-        y: 0,
-        width: 32, 
-        height: 32,
-        
+        defaults: {
+            x: 0, 
+            y: 0,
+            width: 32, 
+            height: 32
+        },
+            
         layers: [],
 
         initialize: function(options) {
-            Tilekit.extend(this, options);
+            Tilekit.extend(this, this.defaults, options);
         },
 
         isTraversable: function() {
@@ -1700,14 +1702,16 @@ TextBox.prototype.draw = function() {
 
         encode: function encode(array) {
 
+            array = array || this.tilemap;
+
             var self = this,
                 output = "",
                 encoding = this.get("encoding"),
-                a;
+                a,
+                i = 0,
+                len = array.length;
 
-            array = array || this.tilemap;
-
-            for (var i = 0, len = array.length; i < len; i++) {
+            while (i < len) {
 
                 a = array[i];
 
@@ -1723,9 +1727,10 @@ TextBox.prototype.draw = function() {
                     output += a < encoding ? "0" + a.toString(encoding) : a.toString(encoding);
                 }
 
+                i++;
             }
 
-            return output.trim();
+            return output;
 
         },
 
@@ -1840,17 +1845,13 @@ TextBox.prototype.draw = function() {
                                 self.tileSprite.draw(self.overlayCtx);
                             }
 
-                            // Helper for showing blocking layer
+                            // Helpers for debugging
                             // -------------------------------------------------- //
 
                             if (TK.debug && z === 1 && type > 0) {
                                 self.debugCtx.fillStyle = "rgba(200, 100, 0, 0.4)";
                                 self.debugCtx.fillRect(posX, posY, size, size);
                             }
-
-
-                            // Helper for showing overlay layer
-                            // -------------------------------------------------- //
 
                             if (TK.debug && z > 1 && type > 0) {
                                 self.debugCtx.fillStyle = "rgba(250, 256, 0, 0.4)";
@@ -1861,12 +1862,6 @@ TextBox.prototype.draw = function() {
 
                     }
 
-                }
-
-                self.save();
-                
-                if (TK.debug) {
-                    self.drawPortals();
                 }
 
                 self.emit("ready");
@@ -1926,18 +1921,6 @@ TextBox.prototype.draw = function() {
             offset.x *= size;
 
             return offset;
-        },
-
-        calculatePixelOffset: function(tile) {
-
-            var center = this.findCenter(),
-                size   = this.get('size');
-
-            return {
-                x : (tile.x * size) + center.x,
-                y : (tile.y * size) + center.y
-            };
-
         }
 
     });
@@ -1948,18 +1931,10 @@ TextBox.prototype.draw = function() {
 
     Grid.methods({
 
-        save: function() {
-            this.baseCtx.save();
-            this.debugCtx.save();
-            this.overlayCtx.save();
-        },
-
         fillspace: function() {
 
             var size = this.get('size');
 
-            // We round to the width/height to make rendering more efficient
-            // and significantly clearer
             this.canvas.width = document.width.roundTo(size);
             this.canvas.height = document.height.roundTo(size);
 
@@ -2000,10 +1975,6 @@ TextBox.prototype.draw = function() {
 
         panTo: function(coords) {
 
-            if (!coords) {
-                return console.error("Grid#panTo: Coordinates must be specified for panning.");
-            }
-
             var size = this.get('size') / 2;
 
             this.set("scroll", {
@@ -2035,44 +2006,6 @@ TextBox.prototype.draw = function() {
 
         },
 
-        drawPortals: function drawPortals() {
-
-            var ctx  = this.debugCtx,
-                size = this.get('size');
-
-            if (this.start_location) {
-                ctx.strokeStyle = "rgb(255, 180, 10)";
-                ctx.fillStyle = "rgba(255, 180, 10, 0.5)";
-                ctx.fillRect(
-                    this.start_location.x * size,
-                    this.start_location.y * size,
-                    size, size
-                );
-                ctx.strokeRect(
-                    this.start_location.x * size,
-                    this.start_location.y * size,
-                    size, size
-                );
-
-            }
-
-            for (var p = 0; p < this.portals.length; p++) {
-                ctx.strokeStyle = "rgb(200, 20, 250)";
-                ctx.fillStyle = "rgba(200, 20, 250, 0.4)";
-                ctx.fillRect(
-                    this.portals[p].x * size,
-                    this.portals[p].y * size,
-                    size, size
-                );
-                ctx.strokeRect(
-                    this.portals[p].x * size,
-                    this.portals[p].y * size,
-                    size, size
-                );
-            }
-
-        },
-
         draw: function() {
 
             var ctx	= this.ctx,
@@ -2084,7 +2017,6 @@ TextBox.prototype.draw = function() {
 
             // Draw the prerendered state
             this.stagingCtx.drawImage(this.base, 0, 0);
-            this.stagingCtx.save();
 
             this.emit("refresh");
 
@@ -2179,7 +2111,7 @@ TextBox.prototype.draw = function() {
 
     var Unit = Tilekit.Unit = Tilekit.Entity.extend({
 
-        attributes: {
+        defaults: {
             speed: 1,
             face: 270,
             hearing: 64,
@@ -2233,7 +2165,7 @@ TextBox.prototype.draw = function() {
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = Tilekit.extend({}, {
+            this.attributes = Tilekit.extend({}, this.defaults, {
                 name: name,
                 created_at: Date.now()
             }, this.attributes, options);
@@ -2630,7 +2562,7 @@ TextBox.prototype.draw = function() {
 
         options = options || {};
         
-        $.extend(this, {
+        Tilekit.extend(this, {
             units: []
         }, options);
 

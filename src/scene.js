@@ -13,7 +13,7 @@
 
         options = options || {};
         
-        $.extend(this, {
+        Tilekit.extend(this, {
             units: []
         }, options);
 

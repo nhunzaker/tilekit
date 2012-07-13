@@ -46,7 +46,7 @@
 
             },
 
-            __debug_render_fps: function(ctx, date) {
+            __debug_render_fps: function(ctx) {
 
                 var fps = this.get("__debug_fps") || 30;
 
@@ -62,6 +62,53 @@
                 ctx.fillText("FPS: " + fps,
                              document.width - offset,
                              document.height- 30);
+            },
+
+            __debug_draw_portals: function() {
+
+                var ctx  = this.debugCtx,
+                    size = this.get('size');
+
+                if (this.start_location) {
+                    ctx.strokeStyle = "rgb(255, 180, 10)";
+                    ctx.fillStyle = "rgba(255, 180, 10, 0.5)";
+                    ctx.clearRect(
+                        this.start_location.x * size,
+                        this.start_location.y * size,
+                        size, size
+                    );
+                    ctx.fillRect(
+                        this.start_location.x * size,
+                        this.start_location.y * size,
+                        size, size
+                    );
+                    ctx.strokeRect(
+                        this.start_location.x * size,
+                        this.start_location.y * size,
+                        size, size
+                    );
+
+                }
+
+                for (var p = 0; p < this.portals.length; p++) {
+                    ctx.strokeStyle = "rgb(200, 20, 250)";
+                    ctx.fillStyle = "rgba(200, 20, 250, 0.4)";
+                    ctx.clearRect(
+                        this.portals[p].x * size,
+                        this.portals[p].y * size,
+                        size, size
+                    );
+                    ctx.fillRect(
+                        this.portals[p].x * size,
+                        this.portals[p].y * size,
+                        size, size
+                    );
+                    ctx.strokeRect(
+                        this.portals[p].x * size,
+                        this.portals[p].y * size,
+                        size, size
+                    );
+                }
             }
             
         }

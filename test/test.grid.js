@@ -24,7 +24,7 @@ describe("Tilekit.Grid", function() {
 
             var center = grid.findCenter(),
                 size   = grid.get("size") / 2;
-
+            
             center.x.should.equal( (grid.canvas.width / 2) - 16);
             center.y.should.equal( (grid.canvas.height / 2) - 16);
         });
@@ -41,8 +41,6 @@ describe("Tilekit.Grid", function() {
             offset.x.should.equal(32);
             offset.y.should.equal(0);
         });
-
-        it("#calculatePixelOffset");
 
     });
     
@@ -70,10 +68,6 @@ describe("Tilekit.Grid", function() {
     
     describe("rendering methods", function() {
         
-        it("#save", function() {
-            grid.save();
-        });
-
         it("#fillspace", function() {
 
             var size = grid.get("size"),
@@ -94,8 +88,15 @@ describe("Tilekit.Grid", function() {
             grid.clear();
         });
 
-        it("#panTo");
-        it("#drawPortals");
+        it("#panTo", function() {
+            grid.panTo({x: 1, y: 1 });
+            
+            var scroll = grid.get("scroll");
+
+            scroll.x.should.equal(16);
+            scroll.y.should.equal(16);
+
+        });
 
         it("#draw", function() {
             grid.draw();
@@ -125,9 +126,4 @@ describe("Tilekit.Grid", function() {
 
     });
 
-    describe("portals", function() {
-        it("has portals");
-        it("emits a portal event");
-        
-    });
 });
