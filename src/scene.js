@@ -1,7 +1,4 @@
 // Scene.js
-// 
-//= require tilekit/text
-//= require tilekit/grid
 // -------------------------------------------------- //
 
 (function(Tilekit) {
@@ -17,8 +14,6 @@
             units: []
         }, options);
 
-        this.grid = options.grid;
-
         if (this.units.length) {
             this.add(this.units);
         }
@@ -33,7 +28,7 @@
         // Handle multiple entries
         // -------------------------------------------------- //
 
-        if ($.isArray(options)) {
+        if (options.isArray) {
 
             while (options[slot]) {
 
@@ -54,7 +49,7 @@
         // Handle single entries
         // -------------------------------------------------- //
         
-        options = $.extend({}, {
+        options = Tilekit.extend({}, {
             image: "/assets/players/default.png",
             tile: {
                 x: options.x || 0,
@@ -85,12 +80,13 @@
 
     Scene.prototype.message = function(header, message, callback) {
         
-        var grid = this.grid;
+        var grid = this.grid,
+            uuid = Date.now();
 
         callback = callback || function(){};
         
         // Okay, now generate the new message
-        this.grid.addLayer("message", function(ctx, date) {
+        this.grid.addLayer("message-" + uuid, function(ctx, date) {
             
             var text = new TextBox({
                 header: header,
@@ -103,7 +99,7 @@
         });
 
         $(window).one("keydown", function remove(e) {
-            grid.removeLayer("message");
+            grid.removeLayer("message-" + uuid);
             callback(e);
             return false;
         });        
@@ -119,8 +115,8 @@
         var result;
 
         for (var u in this.units) {
-            if (condition(this.units[u])) {
-                return result;
+            if (this.units.hasOwnProperty(u) && condition(this.units[u])) { 
+                return result; 
             }
         }
 

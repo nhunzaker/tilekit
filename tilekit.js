@@ -821,7 +821,8 @@
 
 }());
 // Helpers
-//= require ./geo
+// 
+// Common functions and absolutely essential polyfills
 // -------------------------------------------------- //
 
 Array.prototype.isArray = true;
@@ -874,26 +875,7 @@ Number.prototype.ceilTo = function roundTo (to) {
     return amount;
 };
 
-// Given a number, iterate over the absolute value
-Number.prototype.times = function(cb, scope) {
-
-    if (this === 0) {
-        return;
-    }
-    
-    var i = ~~Math.abs(this),
-        n = 0;
-    
-    do { 
-        cb.apply(scope || this, [n]); 
-        i--;
-        n++;
-    } while(i > 0);
-
-};
-
-
-// Request Animation Frame Polyfill
+// Request Animation Frame Polyfill (absolutely essential)
 // -------------------------------------------------- //
 
 if (typeof window !== 'undefined') {
@@ -913,42 +895,9 @@ if (typeof window !== 'undefined') {
 }
 
 
-// Bind Polyfill
-// -------------------------------------------------- //
-
-if (!Function.prototype.bind) {
-
-    Function.prototype.bind = function (oThis) {
-        if (typeof this !== "function") {
-            // closest thing possible to the ECMAScript 5 internal IsCallable function
-            throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
-        }
-
-        var aArgs = Array.prototype.slice.call(arguments, 1), 
-            fToBind = this, 
-            FNOP = function () {},
-            fBound = function () {
-                return fToBind.apply(this instanceof FNOP ? this : oThis,
-                                     aArgs.concat(Array.prototype.slice.call(arguments)));
-            };
-
-        FNOP.prototype = this.prototype;
-        fBound.prototype = new FNOP();
-
-        return fBound;
-    };
-
-}
-
 
 // Math Helpers
 // -------------------------------------------------- //
-
-Math.percentChance = function(val, callback) {
-    if (Math.random() < val / 100) {
-        callback();
-    }
-};
 
 Math.parseDelta = function(number, total) {
 
@@ -2548,9 +2497,6 @@ TextBox.prototype.draw = function() {
 
 }(window.Tilekit));
 // Scene.js
-// 
-//= require tilekit/text
-//= require tilekit/grid
 // -------------------------------------------------- //
 
 (function(Tilekit) {
@@ -2566,8 +2512,6 @@ TextBox.prototype.draw = function() {
             units: []
         }, options);
 
-        this.grid = options.grid;
-
         if (this.units.length) {
             this.add(this.units);
         }
@@ -2582,7 +2526,7 @@ TextBox.prototype.draw = function() {
         // Handle multiple entries
         // -------------------------------------------------- //
 
-        if ($.isArray(options)) {
+        if (options.isArray) {
 
             while (options[slot]) {
 
@@ -2603,7 +2547,7 @@ TextBox.prototype.draw = function() {
         // Handle single entries
         // -------------------------------------------------- //
         
-        options = $.extend({}, {
+        options = Tilekit.extend({}, {
             image: "/assets/players/default.png",
             tile: {
                 x: options.x || 0,
@@ -2634,12 +2578,13 @@ TextBox.prototype.draw = function() {
 
     Scene.prototype.message = function(header, message, callback) {
         
-        var grid = this.grid;
+        var grid = this.grid,
+            uuid = Date.now();
 
         callback = callback || function(){};
         
         // Okay, now generate the new message
-        this.grid.addLayer("message", function(ctx, date) {
+        this.grid.addLayer("message-" + uuid, function(ctx, date) {
             
             var text = new TextBox({
                 header: header,
@@ -2652,7 +2597,7 @@ TextBox.prototype.draw = function() {
         });
 
         $(window).one("keydown", function remove(e) {
-            grid.removeLayer("message");
+            grid.removeLayer("message-" + uuid);
             callback(e);
             return false;
         });        
@@ -2668,8 +2613,8 @@ TextBox.prototype.draw = function() {
         var result;
 
         for (var u in this.units) {
-            if (condition(this.units[u])) {
-                return result;
+            if (this.units.hasOwnProperty(u) && condition(this.units[u])) { 
+                return result; 
             }
         }
 

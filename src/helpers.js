@@ -1,5 +1,6 @@
 // Helpers
-//= require ./geo
+// 
+// Common functions and absolutely essential polyfills
 // -------------------------------------------------- //
 
 Array.prototype.isArray = true;
@@ -52,26 +53,7 @@ Number.prototype.ceilTo = function roundTo (to) {
     return amount;
 };
 
-// Given a number, iterate over the absolute value
-Number.prototype.times = function(cb, scope) {
-
-    if (this === 0) {
-        return;
-    }
-    
-    var i = ~~Math.abs(this),
-        n = 0;
-    
-    do { 
-        cb.apply(scope || this, [n]); 
-        i--;
-        n++;
-    } while(i > 0);
-
-};
-
-
-// Request Animation Frame Polyfill
+// Request Animation Frame Polyfill (absolutely essential)
 // -------------------------------------------------- //
 
 if (typeof window !== 'undefined') {
@@ -91,42 +73,9 @@ if (typeof window !== 'undefined') {
 }
 
 
-// Bind Polyfill
-// -------------------------------------------------- //
-
-if (!Function.prototype.bind) {
-
-    Function.prototype.bind = function (oThis) {
-        if (typeof this !== "function") {
-            // closest thing possible to the ECMAScript 5 internal IsCallable function
-            throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
-        }
-
-        var aArgs = Array.prototype.slice.call(arguments, 1), 
-            fToBind = this, 
-            FNOP = function () {},
-            fBound = function () {
-                return fToBind.apply(this instanceof FNOP ? this : oThis,
-                                     aArgs.concat(Array.prototype.slice.call(arguments)));
-            };
-
-        FNOP.prototype = this.prototype;
-        fBound.prototype = new FNOP();
-
-        return fBound;
-    };
-
-}
-
 
 // Math Helpers
 // -------------------------------------------------- //
-
-Math.percentChance = function(val, callback) {
-    if (Math.random() < val / 100) {
-        callback();
-    }
-};
 
 Math.parseDelta = function(number, total) {
 
