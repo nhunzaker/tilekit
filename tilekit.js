@@ -846,11 +846,8 @@ if (typeof window !== 'undefined') {
     }());
 }
 
-
-
 // Math Helpers
 // -------------------------------------------------- //
-
 
 // Rounds to a given number
 Math.roundTo = function roundTo (num, to) {
