@@ -3,22 +3,26 @@
 
 (function(Tilekit) {
 
+    var PI = Math.PI,
+        Geo = window.Geo;
+
     Tilekit.Grid.methods({
 
         layers: {
             
-            __debug: function(ctx) {
+            __debug_layer: function(ctx) {
                 var center = this.findCenter();
                 ctx.drawImage(this.debug, center.x, center.y);
             },
 
             __debug_highlight_mouse: function(ctx) {
 
-                var mouse = this.get("mouse").position,
+                var mouse = this.get("mouse"),
+                    pos   = mouse? mouse.position : { x:0, y:0 },
                     size  = this.get("size");
 
                 ctx.strokeStyle = "white";
-                ctx.strokeRect(mouse.x, mouse.y, size, size);
+                ctx.strokeRect(pos.x, pos.y, size, size);
             },
 
             // Game performance
@@ -62,6 +66,82 @@
             
         }
 
+    });
+
+
+    Tilekit.Unit.methods({
+
+        layers: {
+
+            __debug_renderClipping: function() {
+
+                var size = this.grid.get('size'),
+                    pos  = this.get("position");
+
+                this.ctx.lineWidth = 1;
+                this.ctx.fillStyle = "rgba(50, 255, 200, 0.3)";
+                this.ctx.strokeStyle = "rgba(50, 255, 200, 0.3)";
+
+                this.ctx.fillRect(pos.x, pos.y, size, size);
+                this.ctx.strokeRect(pos.x, pos.y, size, size);
+
+            },
+
+            __debug_renderVision: function() {
+
+                var ctx    = this.ctx,
+                    size   = this.grid.get('size'),
+                    pos    = this.get("position"),
+                    posX   = pos.x + (size / 2),
+                    posY   = pos.y + (size / 2),
+                    vision = this.get("vision"),
+                    face   = this.get("face"),
+                    cone   = this.get("visionCone");
+
+                if (!vision) {
+                    return;
+                }
+
+                ctx.fillStyle = "rgba(0, 100, 200, 0.3)";
+                ctx.strokeStyle = "rgba(0, 100, 200, 0.5)";
+                ctx.lineWidth = 1;
+
+                ctx.beginPath();
+                ctx.moveTo(posX, posY);
+                ctx.arc(posX, posY,
+                        vision,
+                        Geo.toRadians(-face - cone),
+                        Geo.toRadians(-face + cone),
+                        false);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fill();
+            },
+
+           __debug_renderHearing: function(ctx) {
+
+                var size    = this.grid.get("size"),
+                    pos     = this.get("position"),
+                    hearing = this.get("hearing"),
+                    posX    = pos.x + size / 2,
+                    posY    = pos.y + (size / 2);
+
+                if (!hearing) {
+                    return;
+                }
+
+                ctx.fillStyle = "rgba(255, 150, 50, 0.4)";
+                ctx.strokeStyle = "rgba(255, 150, 50, 0.8)";
+                ctx.lineWidth = 1;
+
+                ctx.beginPath();
+                ctx.arc(posX, posY, hearing, 0, PI * 2);
+                ctx.closePath();
+                ctx.stroke();
+                ctx.fill();
+            }
+
+        }
     });
 
 }(window.Tilekit));

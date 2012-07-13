@@ -1566,7 +1566,7 @@ TextBox.prototype.draw = function() {
 
     var round = Math.round;
 
-    Tilekit.Tile = window.klass({
+    var Tile = window.klass({
 
         x: 0, y: 0,
         width: 32, height: 32,
@@ -1589,24 +1589,18 @@ TextBox.prototype.draw = function() {
 
         isBlocking: function() {
             return this.layers[1] > 0;
-        }
-
-    });
-
-
-    // Calculations
-    // -------------------------------------------------- //
-
-    Tilekit.Tile.methods({
+        },
 
         roundedTile: function() {
             return {
-                x : round(this.tile.x),
-                y : round(this.tile.y)
+                x : round(this.x),
+                y : round(this.y)
             };
         }
 
     });
+
+    Tilekit.Tile = Tile;
 
 }(window.Tilekit));
 // The Grid
@@ -1819,7 +1813,7 @@ TextBox.prototype.draw = function() {
 
     });
 
-    // Manage Refreshing
+    // Game loop methods
     // -------------------------------------------------- //
 
     Grid.methods({
@@ -1851,12 +1845,6 @@ TextBox.prototype.draw = function() {
         play: function () {
             this.set("paused", false);
             this.begin();
-        },
-
-        save: function() {
-            this.baseCtx.save();
-            this.debugCtx.save();
-            this.overlayCtx.save();
         }
 
     });
@@ -1986,29 +1974,13 @@ TextBox.prototype.draw = function() {
 
         },
 
-        // Find a tile given x and y coordinates
-        // returns an object with the tile row/col values
-        translateCoordinates: function(x,y) {
-
-            var size = this.get("size");
-
-            return {
-                x : ceil(x / size),
-                y : ceil(y / size)
-            };
-
-        },
-
         getTileAt: function(x, y) {
 
-            var size = this.get('size'),
-                scroll = this.get('scroll');
+            var size   = this.get('size'),
+                center = this.findCenter();
 
-            x = this.canvas.width - (this.canvas.width - x);
-            y = this.canvas.height - (this.canvas.height - y);
-
-            x -= (this.canvas.width / 2) - (size / 2) - scroll.x * 2;
-            y -= (this.canvas.height / 2) - (size / 2) - scroll.y * 2;
+            x = this.canvas.width - (this.canvas.width - x) - center.x;
+            y = this.canvas.height - (this.canvas.height - y) - center.y;
 
             return {
                 x: x.floorTo(size) / size,
@@ -2054,6 +2026,12 @@ TextBox.prototype.draw = function() {
 
     Grid.methods({
 
+        save: function() {
+            this.baseCtx.save();
+            this.debugCtx.save();
+            this.overlayCtx.save();
+        },
+
         fillspace: function() {
 
             var size = this.get('size');
@@ -2069,18 +2047,25 @@ TextBox.prototype.draw = function() {
         // Replace a specific tile
         replaceTile: function(x, y, layer, slot) {
 
-            var size = this.get("size");
+            var size = this.get("size"),
+                tile;
 
             // Handle missing rows
             if (!this.tilemap[y]) {
                 this.tilemap[y] = [];
+            }
+
+            if (!this.tilemap[y][x]) {
                 this.tilemap[y][x] = new Tile(x, y, size, size);
             }
 
-            this.tilemap[y][x][layer] = slot;
+            tile = this.tilemap[y][x];
 
-            this.drawTile({ x: x, y: y});
+            tile.layers[layer] = slot;
 
+            this.drawTile(tile);
+            
+            return this;
         },
 
         // Wipes the board clean
@@ -2109,34 +2094,22 @@ TextBox.prototype.draw = function() {
 
         drawTile: function drawTile(tile, layerOffset) {
 
-            tile = tile.roundedTile();
-
-            var te      = this,
-                size    = this.get('size'),
-                center  = te.findCenter(),
+            var size    = this.get('size'),
+                center  = this.findCenter(),
                 current = layerOffset || 0,
-                sprite  = te.tileSprite,
-                layers  = this.tile.layers,
+                sprite  = this.tileSprite,
+                layers  = tile.layers,
                 offset, value;
 
             sprite.setPosition(tile.x * size, tile.y * size);
 
             this.baseCtx.clearRect(tile.x * size, tile.y * size, size, size);
 
-            do {
-
-                if (!layers[current][tile.y]) {
-                    layers[current][tile.y] = [];
-                }
-
-                value = layers[current];
-                offset = this.calculateTileOffset(value);
+            for (var c = 0, len = layers.length; c < len; c++) {
+                offset = this.calculateTileOffset(layers[c]);
                 sprite.setOffset(offset.x, offset.y);
                 sprite.draw(this.baseCtx);
-
-                current++;
-
-            } while(layers[current]);
+            }
 
         },
 
@@ -2344,85 +2317,6 @@ TextBox.prototype.draw = function() {
             }, this.attributes, options);
 
             this.layers = $.extend({}, this.layers);
-
-            // Debug Rendering Methods
-            // -------------------------------------------------- //
-
-            if (Tilekit.debug) {
-
-                this.addLayer({
-
-                    renderClipping: function() {
-
-                        var size = this.grid.get('size'),
-                            pos  = this.get("position");
-
-                        this.ctx.lineWidth = 1;
-                        this.ctx.fillStyle = "rgba(50, 255, 200, 0.3)";
-                        this.ctx.strokeStyle = "rgba(50, 255, 200, 0.3)";
-
-                        this.ctx.fillRect(pos.x, pos.y, size, size);
-                        this.ctx.strokeRect(pos.x, pos.y, size, size);
-
-                    },
-
-                    renderVision: function() {
-
-                        var ctx    = this.ctx,
-                            size   = this.grid.get('size'),
-                            pos    = this.get("position"),
-                            posX   = pos.x + (size / 2),
-                            posY   = pos.y + (size / 2),
-                            vision = this.get("vision"),
-                            face   = this.get("face"),
-                            cone   = this.get("visionCone");
-
-                        if (!vision) {
-                            return;
-                        }
-
-                        ctx.fillStyle = "rgba(0, 100, 200, 0.3)";
-                        ctx.strokeStyle = "rgba(0, 100, 200, 0.5)";
-                        ctx.lineWidth = 1;
-
-                        ctx.beginPath();
-                        ctx.moveTo(posX, posY);
-                        ctx.arc(posX, posY,
-                                vision,
-                                Geo.toRadians(-face - cone),
-                                Geo.toRadians(-face + cone),
-                                false);
-                        ctx.closePath();
-                        ctx.stroke();
-                        ctx.fill();
-                    },
-
-                    renderHearing: function(ctx) {
-
-                        var size    = this.grid.get("size"),
-                            pos     = this.get("position"),
-                            hearing = this.get("hearing"),
-                            posX    = pos.x + size / 2,
-                            posY    = pos.y + (size / 2);
-
-                        if (!hearing) {
-                            return;
-                        }
-
-                        ctx.fillStyle = "rgba(255, 150, 50, 0.4)";
-                        ctx.strokeStyle = "rgba(255, 150, 50, 0.8)";
-                        ctx.lineWidth = 1;
-
-                        ctx.beginPath();
-                        ctx.arc(posX, posY, hearing, 0, PI * 2);
-                        ctx.closePath();
-                        ctx.stroke();
-                        ctx.fill();
-                    }
-
-                });
-            }
-
         }
 
     });
@@ -2729,69 +2623,71 @@ TextBox.prototype.draw = function() {
         showName: false,
 
         initialize: function(name, scene, options) {
+
             this.supr(name, scene, options);
+
             var size = scene.grid.get("size");
+
             this.emote_sprite = new Tilekit.Sprite("/assets/emotes.png", size, size, 0, 0);
-        },
+            this.layers = Tilekit.extend(this.layers, {
 
-        layers: {
+                emote: function() {
 
-            emote: function() {
+                    var emote = this.emote_sprite,
+                        pos   = this.get("position"),
+                        size  = this.grid.get('size'),
+                        which = {
 
-                var emote = this.emote_sprite,
-                    pos   = this.get("position"),
-                    size  = this.grid.get('size'),
-                    which = {
+                            // Emotions
+                            "surprised" : [0, 0],
+                            "sad"       : [32, 0],
+                            "love"      : [64, 0],
+                            "power"     : [96, 0],
+                            "happy"     : [128, 0],
+                            "disguise"  : [160, 0],
 
-                        // Emotions
-                        "surprised" : [0, 0],
-                        "sad"       : [32, 0],
-                        "love"      : [64, 0],
-                        "power"     : [96, 0],
-                        "happy"     : [128, 0],
-                        "disguise"  : [160, 0],
+                            // Events
+                            "poison"    : [0, 32],
+                            "quest"     : [32, 32],
+                            "idea"      : [64, 32],
 
-                        // Events
-                        "poison"    : [0, 32],
-                        "quest"     : [32, 32],
-                        "idea"      : [64, 32],
+                            // Sense
+                            "see"       : [0, 64],
+                            "hear"      : [32, 64]
 
-                        // Sense
-                        "see"       : [0, 64],
-                        "hear"      : [32, 64]
+                        }[this.get("emote")] || false;
 
-                    }[this.get("emote")] || false;
+                    if (!which) {
+                        return false;
+                    }
 
-                if (!which) {
-                    return false;
+                    emote.setPosition(pos.x, pos.y - (size + (Math.cos( Date.now() / 500) * 2) ) );
+                    emote.setOffset( which[0], which[1] );
+                    emote.draw(this.ctx);
+
+                },
+
+                renderName: function() {
+
+                    if (!this.showName) {
+                        return;
+                    }
+
+                    var c = this.ctx,
+                        name = this.get("name");
+
+                    c.font = "15px monospace";
+                    c.fillStyle = "#000";
+
+                    var textWidth = this.ctx.measureText(name).width;
+
+                    c.fillText(name,
+                               (this.tile.x * 32) - (textWidth / 10),
+                               (this.tile.y * 31)
+                              );
                 }
-
-                emote.setPosition(pos.x, pos.y - (size + (Math.cos( Date.now() / 500) * 2) ) );
-                emote.setOffset( which[0], which[1] );
-                emote.draw(this.ctx);
-
-            },
-
-            renderName: function() {
-
-                if (!this.showName) {
-                    return;
-                }
-
-                var c = this.ctx,
-                    name = this.get("name");
-
-                c.font = "15px monospace";
-                c.fillStyle = "#000";
-
-                var textWidth = this.ctx.measureText(name).width;
-
-                c.fillText(name,
-                           (this.tile.x * 32) - (textWidth / 10),
-                           (this.tile.y * 31)
-                          );
-            }
-
+                
+            });
         }
 
     });

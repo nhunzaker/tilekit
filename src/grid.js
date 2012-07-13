@@ -208,7 +208,7 @@
 
     });
 
-    // Manage Refreshing
+    // Game loop methods
     // -------------------------------------------------- //
 
     Grid.methods({
@@ -240,12 +240,6 @@
         play: function () {
             this.set("paused", false);
             this.begin();
-        },
-
-        save: function() {
-            this.baseCtx.save();
-            this.debugCtx.save();
-            this.overlayCtx.save();
         }
 
     });
@@ -375,29 +369,13 @@
 
         },
 
-        // Find a tile given x and y coordinates
-        // returns an object with the tile row/col values
-        translateCoordinates: function(x,y) {
-
-            var size = this.get("size");
-
-            return {
-                x : ceil(x / size),
-                y : ceil(y / size)
-            };
-
-        },
-
         getTileAt: function(x, y) {
 
-            var size = this.get('size'),
-                scroll = this.get('scroll');
+            var size   = this.get('size'),
+                center = this.findCenter();
 
-            x = this.canvas.width - (this.canvas.width - x);
-            y = this.canvas.height - (this.canvas.height - y);
-
-            x -= (this.canvas.width / 2) - (size / 2) - scroll.x * 2;
-            y -= (this.canvas.height / 2) - (size / 2) - scroll.y * 2;
+            x = this.canvas.width - (this.canvas.width - x) - center.x;
+            y = this.canvas.height - (this.canvas.height - y) - center.y;
 
             return {
                 x: x.floorTo(size) / size,
@@ -443,6 +421,12 @@
 
     Grid.methods({
 
+        save: function() {
+            this.baseCtx.save();
+            this.debugCtx.save();
+            this.overlayCtx.save();
+        },
+
         fillspace: function() {
 
             var size = this.get('size');
@@ -458,18 +442,25 @@
         // Replace a specific tile
         replaceTile: function(x, y, layer, slot) {
 
-            var size = this.get("size");
+            var size = this.get("size"),
+                tile;
 
             // Handle missing rows
             if (!this.tilemap[y]) {
                 this.tilemap[y] = [];
+            }
+
+            if (!this.tilemap[y][x]) {
                 this.tilemap[y][x] = new Tile(x, y, size, size);
             }
 
-            this.tilemap[y][x][layer] = slot;
+            tile = this.tilemap[y][x];
 
-            this.drawTile({ x: x, y: y});
+            tile.layers[layer] = slot;
 
+            this.drawTile(tile);
+            
+            return this;
         },
 
         // Wipes the board clean
@@ -498,34 +489,22 @@
 
         drawTile: function drawTile(tile, layerOffset) {
 
-            tile = tile.roundedTile();
-
-            var te      = this,
-                size    = this.get('size'),
-                center  = te.findCenter(),
+            var size    = this.get('size'),
+                center  = this.findCenter(),
                 current = layerOffset || 0,
-                sprite  = te.tileSprite,
-                layers  = this.tile.layers,
+                sprite  = this.tileSprite,
+                layers  = tile.layers,
                 offset, value;
 
             sprite.setPosition(tile.x * size, tile.y * size);
 
             this.baseCtx.clearRect(tile.x * size, tile.y * size, size, size);
 
-            do {
-
-                if (!layers[current][tile.y]) {
-                    layers[current][tile.y] = [];
-                }
-
-                value = layers[current];
-                offset = this.calculateTileOffset(value);
+            for (var c = 0, len = layers.length; c < len; c++) {
+                offset = this.calculateTileOffset(layers[c]);
                 sprite.setOffset(offset.x, offset.y);
                 sprite.draw(this.baseCtx);
-
-                current++;
-
-            } while(layers[current]);
+            }
 
         },
 
