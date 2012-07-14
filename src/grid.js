@@ -75,10 +75,10 @@
             }
             
             this.ctx = this.canvas.getContext('2d');
-
+            
             // Event Handling
             // -------------------------------------------------- //
-
+            
             this.on('ready', function() {
                 
                 var resize = this.get("resize"),
@@ -117,6 +117,10 @@
             
             // Events
             // -------------------------------------------------- //
+       
+            this.canvas.parentNode.oncontextmenu = function() {
+                return false;
+            };
 
             this.canvas.addEventListener("click", mouseEmit);
             this.canvas.addEventListener("mousemove", mouseEmit);
