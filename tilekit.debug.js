@@ -5,7 +5,30 @@
 
     var PI = Math.PI,
         Geo = window.Geo;
+    
+    Tilekit.Tile.methods({
 
+        debug: function() {
+
+            var pos = this.sprite.position,
+                grid = this.grid;
+            
+            // Helpers for debugging
+            // -------------------------------------------------- //
+            
+            if (this.layers[1] > 0) {
+                grid.debugCtx.fillStyle = "rgba(200, 100, 0, 0.4)";
+                grid.debugCtx.fillRect(pos.x, pos.y, this.width, this.height );
+            }
+
+            if (this.layers[2] > 0) {
+                grid.debugCtx.fillStyle = "rgba(250, 256, 0, 0.4)";
+                grid.debugCtx.fillRect( pos.x, pos.y, this.width, this.height );
+            }
+        }
+
+    });
+    
     Tilekit.Grid.methods({
 
         layers: {
@@ -119,18 +142,25 @@
     Tilekit.Unit.methods({
 
         layers: {
-
-            __debug_renderClipping: function() {
+            
+            __debug_renderClipping: function(ctx) {
 
                 var size = this.grid.get('size'),
                     pos  = this.get("position");
 
-                this.ctx.lineWidth = 1;
-                this.ctx.fillStyle = "rgba(50, 255, 200, 0.3)";
-                this.ctx.strokeStyle = "rgba(50, 255, 200, 0.3)";
+                ctx.lineWidth = 1;
+                ctx.fillStyle = "rgba(50, 255, 200, 0.3)";
+                ctx.strokeStyle = "rgba(50, 255, 200, 0.3)";
 
-                this.ctx.fillRect(pos.x, pos.y, size, size);
-                this.ctx.strokeRect(pos.x, pos.y, size, size);
+                ctx.fillRect(pos.x, pos.y, size, size);
+                ctx.strokeRect(pos.x, pos.y, size, size);
+                
+                var s = this.sprite;
+                
+                ctx.strokeStyle = "rgba(255,0,0,0.5)";
+                ctx.strokeRect(s.position.x - s.padding, 
+                               s.position.y - s.padding, 
+                               s.width, s.height);
 
             },
 
@@ -165,7 +195,7 @@
                 ctx.fill();
             },
 
-           __debug_renderHearing: function(ctx) {
+            __debug_renderHearing: function(ctx) {
 
                 var size    = this.grid.get("size"),
                     pos     = this.get("position"),

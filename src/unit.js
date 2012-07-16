@@ -23,17 +23,20 @@
         PI      = Math.PI,
 
         findDistance = Geo.findDistance,
+        findPoint    = Geo.findPoint,
         isWithinCone = Geo.isWithinCone,
         requestAnimationFrame = window.requestAnimationFrame;
 
     var Unit = Tilekit.Unit = Tilekit.Entity.extend({
 
         defaults: {
+            animation: "stand",
             speed: 1,
             face: 270,
             hearing: 64,
             vision: 96,
             visionCone: 30,
+            path: [],
             position: {
                 x: 0,
                 y: 0
@@ -70,13 +73,38 @@
                 x: options.tile.x * size,
                 y: options.tile.y * size
             });
-
-            this.sprite = new Sprite(options.image, size, size, 0, 0, 3, 200, this.ctx);
+            
+            this.sprite = new Sprite(options.image, {
+                width: size * 2,
+                height: size * 2,
+                target: this.ctx,
+                padding: size / 2
+            });
 
             grid.on('refresh', this.draw.bind(this), this);
-
+            
             this.on('draw', function() {
                 self.renderLayers(self.ctx);
+            });
+
+            this.on("change:animation", function(next, prev) {
+
+                if (prev === next) {
+                    self.sprite.iterations = 0;
+                    return;
+                }
+                
+                var animation = self.animations[next];
+
+                if (animation) {
+                    self.sprite.iterations = 0;
+                    self.sprite.base_offset.x = animation.offset.x || 0;
+                    self.sprite.base_offset.y = animation.offset.y || 0;
+                    self.sprite.shift = animation.shift || self.sprite.width;
+                    self.sprite.setFrames(animation.frames || 1);
+                    self.sprite.setDuration(animation.duration || 1);
+                }
+
             });
 
             // Attributes
@@ -88,6 +116,56 @@
             }, this.attributes, options);
 
             this.layers = Tilekit.extend({}, this.layers);
+
+            this.setFace(this.get("face"));
+            
+
+            // Animations
+            // -------------------------------------------------- //
+
+            this.animations = {
+
+                stand: {
+                    offset: {
+                        x: 0,
+                        y: 0
+                    }
+                },
+
+                walk: {
+                    frames: 2,
+                    duration: 220,
+                    offset: {
+                        x: size * 2,
+                        y: size * 2
+                    },
+                    shift: size * 2
+                },
+
+                attack: {
+                    frames: 3,
+                    duration: 200,
+                    offset: {
+                        x: 194,
+                        y: size * 2
+                    },
+                    shift: size * 2,
+                    iterations: 1
+                },
+
+                spell: {
+                    frames: 3,
+                    duration: 400,
+                    offset: {
+                        x: 450,
+                        y: size * 2
+                    },
+                    shift: size * 2,
+                    iterations: 1
+                }
+
+            };
+
         }
 
     });
@@ -96,39 +174,29 @@
     // -------------------------------------------------- //
 
     Unit.methods({
-
         getTileFront: function(offset) {
-            return Geo.findPoint(this.tile, offset || 1, this.get("face"));
+            return findPoint(this.tile, offset || 1, this.get("face"));
         },
-
         getTileBack: function(offset) {
-            return Geo.findPoint(this.tile, offset || 1, -this.get("face"));
+            return findPoint(this.tile, offset || 1, -this.get("face"));
         },
-
         setFace: function(direction) {
 
-            if (typeof direction !== 'number') {
-                if (Tilekit.debug) {
-                    console.error("Unit#setFace requires a numerical direction.");
-                }
-                return false;
-            }
-
-            var face = direction.isUnit ? abs(direction.get("face") - 180) : direction;
+            var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
+                size = this.grid.get('size');
 
             // What direction are we dealing with?
             switch(direction) {
-            case 90  : this.sprite.setOffset(0,100); break;
-            case 270 : this.sprite.setOffset(0,0);   break;
-            case 0   : this.sprite.setOffset(0,150); break;
-            case 180 : this.sprite.setOffset(0,50);  break;
+            case 90  : this.sprite.setOffset(undefined, size * 4); break;
+            case 270 : this.sprite.setOffset(undefined, 0); break;
+            case 0   : this.sprite.setOffset(undefined, size * 6); break;
+            case 180 : this.sprite.setOffset(undefined, size * 2); break;
             }
 
             this.set("face", face);
 
             return this;
         }
-
     });
 
 
@@ -136,29 +204,48 @@
     // -------------------------------------------------- //
 
     Unit.methods({
-
         toJSON: function() {
-            return $.extend({}, this.attributes, this.tile());
+            return Tilekit.extend({}, this.attributes, this.tile());
         },
-
         remove: function() {
             this.grid.removeListener("refresh", this.draw);
         }
+    });
 
+    // Actions
+    // -------------------------------------------------- //
+
+    Unit.methods({
+        attack: function() {
+            this.halt();
+            this.set("animation", "attack");
+            this.emit("attack", this.getTileFront());
+        },
+        spell: function() {
+            this.halt();
+            this.set("animation", "spell");
+            this.emit("spell", this.tile());
+        }
     });
 
     // Rendering Methods
     // -------------------------------------------------- //
 
     Unit.methods({
-
         draw: function() {
-            var pos = this.get("position");
 
+            var pos  = this.get("position"),
+                anim = this.animations[this.get("animation")];
+
+            if (anim.iterations !== 0 && this.sprite.iterations >= anim.iterations) {
+                this.set("animation", "stand");
+            }
+
+            this.sprite.animate();
             this.sprite.setPosition(pos.x, pos.y).draw();
+
             this.emit("draw");
         }
-
     });
 
     // Movement
@@ -169,17 +256,18 @@
         halt: function(trigger) {
 
             var size = this.grid.get('size'),
-                pos  = this.get('position');
+                pos  = this.get('position'),
+                tile = this.tile();
 
-            this.moving = false;
-
-            this.set("position", {
-                x: roundTo(pos.x, size),
-                y: roundTo(pos.y, size)
+            this.set({
+                moving: false,
+                position: {
+                    x: roundTo(pos.x, size),
+                    y: roundTo(pos.y, size)
+                },
+                path: [],
+                animation: "stand"
             });
-
-            var tile = this.tile();
-            this.sprite.currentFrame = 0;
 
             if (trigger) {
                 this.grid.emit("tile:" + tile.x + "," + tile.y);
@@ -189,57 +277,51 @@
 
         },
 
-        move: function(direction, pan, callback) {
-
-            // Prevent any other move actions until the old one finishes
-            if (this.moving) {
-                return false;
-            }
-
-            this.moving = true;
+        move: function move (direction, pan, callback) {
+       
+            this.set("moving", true);
 
             callback = callback || function(){};
-
+            
             // At the very least, get the character facing in the intended direction
             this.setFace(direction);
 
-            var grid      = this.grid,
-                shift     = round(this.grid.shift),
-                size      = grid.get('size'),
-                speed     = this.get("speed"),
-                pos       = this.get("position"),
-                self      = this;
+            var grid  = this.grid,
+                self  = this,
+                
+                size  = grid.get('size'),
+                speed = this.get("speed"),
+                pos   = this.get("position"),
+            
+                delta = findPoint({ x: 0, y: 0 }, 1, -direction),
+                goal  = findPoint(pos, size, -direction);
 
-            // What direction are we dealing with?
-            var delta = Geo.findPoint({ x: 0, y: 0 }, 1, -direction),
-                goal  = Geo.findPoint(pos, size, -direction);
-
+            this.set("animation", "walk");
+            
             // Hit detection
             if (this.detectHit(delta.x * size, delta.y * size) ) {
                 return this.halt(true);
             }
-
+            
             function animate() {
+            
+                var shift = round(grid.shift);
 
-                var pos   = self.get("position");
-
-                self.set("position", {
-                    x: pos.x + delta.x * shift * speed,
-                    y: pos.y + delta.y * shift * speed
-                });
+                pos.x += delta.x * shift * speed;
+                pos.y += delta.y * shift * speed;
 
                 // Do we pan the screen with this character?
                 if (pan) {
                     grid.panTo(self.tile());
                 }
 
-                if (pos.x === goal.x && pos.y === goal.y) {
+                if ( pos.x === goal.x && pos.y === goal.y ) {
                     self.halt(true);
                     return callback.apply(self, [Date.now()]);
                 }
 
-                self.sprite.animate();
                 return requestAnimationFrame(animate);
+
             }
 
             animate();
@@ -248,38 +330,39 @@
 
         },
 
-        setPath: function (destination, options) {
-
+        setPath: function fn(destination, options) {
+     
+            // We use this function to make sure we are always
+            // moving in the correct direction
+            var audit = fn.__audit = Date.now();
+            
             options = options || {};
 
             var self = this,
-                waypoints = [],
-                grid = this.grid,
-                tile = this.tile();
+                tile = this.tile(),
+                path;
+
+            if ( this.is("moving") ) {
+                this.halt();
+            }
 
             if (destination.isUnit) {
                 destination = destination.tile;
             }
-
-            // If it's a tile, then let's do some calculations
 
             tile = {
                 x : round(tile.x),
                 y : round(tile.y)
             };
 
-            waypoints = grid.plotCourse(tile, destination, this.scene.units);
-
-            var path = this.set("path", waypoints);
-
+            path = this.set(
+                "path", this.grid.plotCourse(tile, destination, this.scene.units)
+            );
+            
             function traceSteps() {
-
-                var move = path.shift();
-
-                if (move !== undefined) {
-                    self.move(move, options.pan, traceSteps);
+                if ( path.length && audit === fn.__audit) {
+                    self.move(path.shift(), options.pan, traceSteps);
                 }
-
             }
 
             traceSteps();

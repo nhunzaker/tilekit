@@ -65,11 +65,7 @@
         return true;
 
     };
-
-    if (typeof module !== 'undefined') {
-        global.Geo = Geo;
-    } else {
-        window.Geo = Geo;
-    }
+    
+    window.Geo = Geo;
 
 }());

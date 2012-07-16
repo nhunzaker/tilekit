@@ -782,6 +782,9 @@
         debug: false,
         
         defaults: {
+            
+            font: "bold 18pt Helvetica",
+
             character_sprite: "character.png",
             emote_sprite: "emote.png"
         },
@@ -988,12 +991,8 @@ Format.align = function(orientation, segment, total, offset) {
         return true;
 
     };
-
-    if (typeof module !== 'undefined') {
-        global.Geo = Geo;
-    } else {
-        window.Geo = Geo;
-    }
+    
+    window.Geo = Geo;
 
 }());
 // A simple text module
@@ -1120,6 +1119,27 @@ TextBox.prototype.draw = function() {
     return;
 
 };
+// Primitives
+// -------------------------------------------------- //
+
+Tilekit.Text = function(ctx, text, x, y, options) {
+    ctx.font = options.font || Tilekit.defaults.font;
+    ctx.fillStyle = options.color || "#fff";
+
+    if (options && options.align === "center") {
+        x -= ctx.measureText(text).width / 2;
+    }
+    
+    ctx.fillText(text, x, y);
+};
+
+Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
+    ctx.fillStyle = options.fill;
+    
+    if (options.fill) {
+        ctx.fillRect(0, 0, width, height);
+    }
+};
 /**
  * A simple timer
  */
@@ -1149,31 +1169,48 @@ TextBox.prototype.draw = function() {
 
 (function(Tilekit) {
 
-    var Sprite = function(src, width, height, offsetX, offsetY, frames, duration, target) {
+    var Sprite = function(src, options) {
+        
+        Tilekit.extend(this, {
+            width: 0,
+            height: 0,
 
-        this.spritesheet = null;
-        this.offsetX = 0;
-        this.offsetY = 0;
-        this.width = width;
-        this.height = height;
-        this.frames = 1;
-        this.currentFrame = 0;
-        this.duration = 1;
-        this.posX = 0;
-        this.posY = 0;
-        this.shown = true;
-        this.zoomLevel = 1;
-        this.shadow = null;
+            offset: {
+                x : 0,
+                y: 0
+            },
+            base_offset: {
+                x: 0,
+                y: 0
+            },
+            
+            padding: 0,
+            position: {
+                x: 0,
+                y: 0
+            },
+            base_position: {
+                x: 0,
+                y: 0
+            },
+
+            frames: 1, 
+            currentFrame: 0,
+            iterations: 0,
+
+            duration: 1,
+            spritesheet: null,
+            shadow: null,
+            shown: true,
+            zoomLevel: 1,
+            target: null,
+            timer: new Tilekit.Timer()
+            
+        }, options);            
+        
+        this.shift = this.width;
 
         this.setSpritesheet(src);
-        this.setOffset(offsetX, offsetY);
-        this.setFrames(frames);
-        this.setDuration(duration);
-
-        this.target = target;
-
-        this.timer = new Tilekit.Timer();
-
         this.created_at = this.timer.getMilliseconds();
 
         var d = new Date();
@@ -1206,15 +1243,20 @@ TextBox.prototype.draw = function() {
     };
 
     Sprite.prototype.setPosition = function(x, y) {
-        this.posX = x;
-        this.posY = y;
-
+        this.position.x = x;
+        this.position.y = y;
         return this;
     };
 
     Sprite.prototype.setOffset = function(x, y) {
-        this.offsetX = x;
-        this.offsetY = y;
+
+        if (typeof x !== 'undefined') {
+            this.offset.x = x;
+        }
+
+        if (typeof y !== 'undefined') {
+            this.offset.y = y;
+        }
 
         return this;
     };
@@ -1244,10 +1286,11 @@ TextBox.prototype.draw = function() {
                 this.ftime = 0;
             }
 
-            this.offsetX = this.width * this.currentFrame;
+            this.offset.x = this.base_offset.x + (this.shift * this.currentFrame);
 
             if (this.currentFrame === (this.frames - 1)) {
                 this.currentFrame = 0;
+                this.iterations++;
             } else {
                 this.currentFrame++;
             }
@@ -1270,67 +1313,73 @@ TextBox.prototype.draw = function() {
 
         return this;
     };
+    
+    Sprite.prototype.drawShadow = function(c, degrees) {
 
+            if (this.shadow === null) { // Shadow not created yet
+
+                var sCnv = document.createElement("canvas");
+                var sCtx = sCnv.getContext("2d");
+
+                sCnv.width = this.width;
+                sCnv.height = this.height;
+
+                sCtx.drawImage(this.spritesheet,
+                               this.offset.x,
+                               this.offset.y,
+                               this.width,
+                               this.height,
+                               0,
+                               0,
+                               this.width * this.zoomLevel,
+                               this.height * this.zoomLevel);
+
+                var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
+
+                for (var i = 0, len = idata.data.length; i < len; i += 4) {
+                    idata.data[i] = 0; // R
+                    idata.data[i + 1] = 0; // G
+                    idata.data[i + 2] = 0; // B
+                }
+
+                sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
+                sCtx.putImageData(idata, 0, 0);
+
+                this.shadow = sCtx;
+            }
+
+            c.save();
+            c.globalAlpha = 0.1;
+
+            var sw = this.width * this.zoomLevel;
+            var sh = this.height * this.zoomLevel;
+
+            c.drawImage(this.shadow.canvas, this.pos.x, this.pos.y - sh, sw, sh * 2);
+            c.restore();
+
+    };
+    
     Sprite.prototype.draw = function(c, drawShadow, degrees) {
 
         c = c || this.target;
 
-        if (this.shown) {
-
-            if (drawShadow !== undefined && drawShadow) {
-
-                if (this.shadow === null) { // Shadow not created yet
-
-                    var sCnv = document.createElement("canvas");
-                    var sCtx = sCnv.getContext("2d");
-
-                    sCnv.width = this.width;
-                    sCnv.height = this.height;
-
-                    sCtx.drawImage(this.spritesheet,
-                                   this.offsetX,
-                                   this.offsetY,
-                                   this.width,
-                                   this.height,
-                                   0,
-                                   0,
-                                   this.width * this.zoomLevel,
-                                   this.height * this.zoomLevel);
-
-                    var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
-
-                    for (var i = 0, len = idata.data.length; i < len; i += 4) {
-                        idata.data[i] = 0; // R
-                        idata.data[i + 1] = 0; // G
-                        idata.data[i + 2] = 0; // B
-                    }
-
-                    sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
-                    sCtx.putImageData(idata, 0, 0);
-
-                    this.shadow = sCtx;
-                }
-
-                c.save();
-                c.globalAlpha = 0.1;
-
-                var sw = this.width * this.zoomLevel;
-                var sh = this.height * this.zoomLevel;
-
-                c.drawImage(this.shadow.canvas, this.posX, this.posY - sh, sw, sh * 2);
-                c.restore();
-            }
-
-            c.drawImage(this.spritesheet,
-                        this.offsetX,
-                        this.offsetY,
-                        this.width,
-                        this.height,
-                        this.posX,
-                        this.posY,
-                        this.width * this.zoomLevel,
-                        this.height * this.zoomLevel);
+        if (!this.shown) {
+            return false; 
         }
+        
+        if (drawShadow) {
+            this.drawShadow(c, drawShadow, degrees);
+        }       
+
+        c.drawImage(this.spritesheet,
+                    this.offset.x,
+                    this.offset.y,
+                    this.width,
+                    this.height,
+                    this.position.x - this.padding,
+                    this.position.y - this.padding,
+                    this.width * this.zoomLevel,
+                    this.height * this.zoomLevel);
 
         return this;
     };
@@ -1367,12 +1416,30 @@ TextBox.prototype.draw = function() {
 
         set: function(key, value) {
 
+            if (typeof key === 'object') {
+
+                for (var k in key) {
+
+                    if (key.hasOwnProperty(k)) {
+                        this.set(k, key[k]);
+                    }
+
+                }
+
+            }
+            
             var previous = this.attributes[key];
 
             this.attributes[key] = value;
-            this.emit(["change", "change:" + value], value, previous);
+
+            this.emit("change", value, previous);
+            this.emit("change:" + key, value, previous);
 
             return this.attributes[key];
+        },
+
+        is: function(key, condition) {
+            return this.get(key) === (condition || true);
         },
 
         // Layers
@@ -1416,7 +1483,7 @@ TextBox.prototype.draw = function() {
             for (var layer in layers) {
 
                 if (layers.hasOwnProperty(layer) && typeof layers[layer] === 'function') {
-                    layers[layer].apply(this, [ctx || this.ctx, Date()]);
+                    layers[layer].apply(this, [ctx || this.ctx, Date(), this]);
                 }
 
             }
@@ -1435,7 +1502,7 @@ TextBox.prototype.draw = function() {
 
     var round = Math.round;
     
-    var Tile = window.klass({
+    var Tile = Tilekit.Entity.extend({
 
         defaults: {
             x: 0, 
@@ -1463,8 +1530,36 @@ TextBox.prototype.draw = function() {
                 x : round(this.x),
                 y : round(this.y)
             };
-        }
+        },
 
+        draw: function(c) {
+
+            var grid = this.grid,
+                sprite = this.sprite,
+                layers = this.layers,
+                pos = this.sprite.position;
+
+            for (var i = 0, len = layers.length; i < len; i++) {
+
+                var type = layers[i],
+                    offset = grid.calculateTileOffset(type);
+
+                sprite.setOffset(offset.x, offset.y);
+                sprite.draw(c);
+
+                if (i > 1 && type > 0) {
+                    sprite.draw(grid.overlayCtx);
+                } else {
+                    sprite.draw();
+                }
+            }
+
+            if (Tilekit.debug) {
+                this.debug();
+            }
+            
+        }
+        
     });
 
     Tilekit.Tile = Tile;
@@ -1554,25 +1649,29 @@ TextBox.prototype.draw = function() {
             this.on('ready', function() {
                 
                 var resize = this.get("resize"),
-                    start  = this.get("start_location");
+                    start  = this.get("start_location"),
+                    self = this;
                 
-                if (resize !== false) {
-                    window.addEventListener("resize", function() {
-                        self.fillspace();
-                    });
+                window.addEventListener("resize", function() {
                     self.fillspace();
-                }
+                });
+
+                self.fillspace();
 
                 if (start) {
                     self.panTo(options.start_location);
                 }
+
+                window.onblur = function() {
+                    self.pause();
+                };
 
                 self.begin();
 
             });
 
             function mouseEmit(e) {
-
+                
                 var size   = self.get("size"),
                     center = self.findCenter();
                 
@@ -1584,12 +1683,12 @@ TextBox.prototype.draw = function() {
 
                 self.set("mouse", e);
                 self.emit(e.type, e);
+                
             }
-            
             
             // Events
             // -------------------------------------------------- //
-       
+            
             this.canvas.parentNode.oncontextmenu = function() {
                 return false;
             };
@@ -1633,8 +1732,7 @@ TextBox.prototype.draw = function() {
 
             base.height = debug.height = staging.height = overlay.height = options.canvasHeight || 2000;
             base.width  = debug.width  = staging.width  = overlay.width  = options.canvasWidth || 2000;
-
-
+            
             // Render the initial map state
             // -------------------------------------------------- //
 
@@ -1732,12 +1830,34 @@ TextBox.prototype.draw = function() {
         },
 
         pause: function () {
+            
+            if (this.get("paused")) {
+                return;
+            }
+            
             this.set("paused", true);
+
+            var ctx = this.ctx,
+                canvas = this.canvas;
+            
+            TK.Rectangle(ctx, 0, 0, document.width, document.height, { fill: "rgba(0,0,0,0.6)" });
+
+            TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2 + 1, { align: "center", color: "#000" });
+            TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2,     { align: 'center', color: "#fff" });
+
         },
 
         play: function () {
             this.set("paused", false);
             this.begin();
+        },
+
+        toggle: function() {
+            if ( this.get("paused") ){
+                this.play();
+            } else {
+                this.pause();
+            }
         }
 
     });
@@ -1755,7 +1875,11 @@ TextBox.prototype.draw = function() {
                 tileset = this.get("tileset"),
                 type;
 
-            this.tileSprite = new Sprite(tileset, size, size, 0, 0, this.stagingCtx);
+            this.tileSprite = new Sprite(tileset, {
+                width: size,
+                height: size, 
+                target: this.stagingCtx
+            });
 
             // Finally, we need some calculations to help the tileengine paint the map
             var sampleTileSet = new window.Image();
@@ -1784,50 +1908,43 @@ TextBox.prototype.draw = function() {
 
                             // Add the value
                             type = parseInt(segment.slice(x, x + 2), encoding);
-
+                            offset = self.calculateTileOffset(type);
+                            
                             var tile = self.tilemap[y][x / 2] = self.tilemap[y][x / 2] || new Tile({
+                                grid: self,
                                 x: x / 2,
                                 y: y,
                                 width: size,
                                 height: size,
-                                layers: [0,0,0]
+                                layers: [0,0,0],
+
+                                sprite: new Sprite(tileset, {
+                                    width: size,
+                                    height: size, 
+                                    target: self.baseCtx,
+                                    position: {
+                                        x: size * x / 2,
+                                        y: size * y
+                                    },
+                                    offset: offset
+                                })
                             });
-
-                            self.tilemap[y][x / 2].layers[z] = type;
-
-                            // Draw it on the map
-                            offset = self.calculateTileOffset(type);
-
-                            var posX = size * x / 2,
-                                posY = size * y;
-
-                            self.tileSprite.setOffset(offset.x, offset.y);
-                            self.tileSprite.setPosition(posX, posY);
-                            self.tileSprite.draw(self.baseCtx);
-
-                            // If we're dealing with an overlay, let's add it to that
-                            // layer
-                            if (z > 1 && type > 0) {
-                                self.tileSprite.draw(self.overlayCtx);
-                            }
-
-                            // Helpers for debugging
-                            // -------------------------------------------------- //
-
-                            if (TK.debug && z === 1 && type > 0) {
-                                self.debugCtx.fillStyle = "rgba(200, 100, 0, 0.4)";
-                                self.debugCtx.fillRect(posX, posY, size, size);
-                            }
-
-                            if (TK.debug && z > 1 && type > 0) {
-                                self.debugCtx.fillStyle = "rgba(250, 256, 0, 0.4)";
-                                self.debugCtx.fillRect(posX, posY, size, size);
-                            }
+                            
+                            tile.layers[z] = type;
 
                         }
 
                     }
 
+                }
+                
+                // Render output
+                // -------------------------------------------------- //
+
+                for (var y = 0, height = self.tilemap.length; y < height; y++) {
+                    for (var x = 0, row = self.tilemap[y], depth = row.length; x < depth; x++) {
+                        self.tilemap[y][x].draw();
+                    }
                 }
 
                 self.emit("ready");
@@ -1890,8 +2007,8 @@ TextBox.prototype.draw = function() {
         }
 
     });
-
-
+    
+    
     // Rendering
     // -------------------------------------------------- //
 
@@ -1901,8 +2018,8 @@ TextBox.prototype.draw = function() {
 
             var size = this.get('size');
 
-            this.canvas.width  = roundTo(document.width, size);
-            this.canvas.height = roundTo(document.height, size);
+            this.canvas.width  = roundTo(window.innerWidth, size);
+            this.canvas.height = roundTo(window.innerHeight, size);
 
             return this;
         },
@@ -2044,6 +2161,7 @@ TextBox.prototype.draw = function() {
             }
 
             for (var b in additional) {
+
                 if (additional.hasOwnProperty(b)) {
 
                     var s = additional[b].tile(),
@@ -2053,7 +2171,9 @@ TextBox.prototype.draw = function() {
                         };
                     
                     tilemap[undo.y][undo.x].layers[1] = original[b];
+
                 }
+
             }
 
             return points;
@@ -2088,17 +2208,20 @@ TextBox.prototype.draw = function() {
         PI      = Math.PI,
 
         findDistance = Geo.findDistance,
+        findPoint    = Geo.findPoint,
         isWithinCone = Geo.isWithinCone,
         requestAnimationFrame = window.requestAnimationFrame;
 
     var Unit = Tilekit.Unit = Tilekit.Entity.extend({
 
         defaults: {
+            animation: "stand",
             speed: 1,
             face: 270,
             hearing: 64,
             vision: 96,
             visionCone: 30,
+            path: [],
             position: {
                 x: 0,
                 y: 0
@@ -2135,13 +2258,38 @@ TextBox.prototype.draw = function() {
                 x: options.tile.x * size,
                 y: options.tile.y * size
             });
-
-            this.sprite = new Sprite(options.image, size, size, 0, 0, 3, 200, this.ctx);
+            
+            this.sprite = new Sprite(options.image, {
+                width: size * 2,
+                height: size * 2,
+                target: this.ctx,
+                padding: size / 2
+            });
 
             grid.on('refresh', this.draw.bind(this), this);
-
+            
             this.on('draw', function() {
                 self.renderLayers(self.ctx);
+            });
+
+            this.on("change:animation", function(next, prev) {
+
+                if (prev === next) {
+                    self.sprite.iterations = 0;
+                    return;
+                }
+                
+                var animation = self.animations[next];
+
+                if (animation) {
+                    self.sprite.iterations = 0;
+                    self.sprite.base_offset.x = animation.offset.x || 0;
+                    self.sprite.base_offset.y = animation.offset.y || 0;
+                    self.sprite.shift = animation.shift || self.sprite.width;
+                    self.sprite.setFrames(animation.frames || 1);
+                    self.sprite.setDuration(animation.duration || 1);
+                }
+
             });
 
             // Attributes
@@ -2153,6 +2301,56 @@ TextBox.prototype.draw = function() {
             }, this.attributes, options);
 
             this.layers = Tilekit.extend({}, this.layers);
+
+            this.setFace(this.get("face"));
+            
+
+            // Animations
+            // -------------------------------------------------- //
+
+            this.animations = {
+
+                stand: {
+                    offset: {
+                        x: 0,
+                        y: 0
+                    }
+                },
+
+                walk: {
+                    frames: 2,
+                    duration: 220,
+                    offset: {
+                        x: size * 2,
+                        y: size * 2
+                    },
+                    shift: size * 2
+                },
+
+                attack: {
+                    frames: 3,
+                    duration: 200,
+                    offset: {
+                        x: 194,
+                        y: size * 2
+                    },
+                    shift: size * 2,
+                    iterations: 1
+                },
+
+                spell: {
+                    frames: 3,
+                    duration: 400,
+                    offset: {
+                        x: 450,
+                        y: size * 2
+                    },
+                    shift: size * 2,
+                    iterations: 1
+                }
+
+            };
+
         }
 
     });
@@ -2161,39 +2359,29 @@ TextBox.prototype.draw = function() {
     // -------------------------------------------------- //
 
     Unit.methods({
-
         getTileFront: function(offset) {
-            return Geo.findPoint(this.tile, offset || 1, this.get("face"));
+            return findPoint(this.tile, offset || 1, this.get("face"));
         },
-
         getTileBack: function(offset) {
-            return Geo.findPoint(this.tile, offset || 1, -this.get("face"));
+            return findPoint(this.tile, offset || 1, -this.get("face"));
         },
-
         setFace: function(direction) {
 
-            if (typeof direction !== 'number') {
-                if (Tilekit.debug) {
-                    console.error("Unit#setFace requires a numerical direction.");
-                }
-                return false;
-            }
-
-            var face = direction.isUnit ? abs(direction.get("face") - 180) : direction;
+            var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
+                size = this.grid.get('size');
 
             // What direction are we dealing with?
             switch(direction) {
-            case 90  : this.sprite.setOffset(0,100); break;
-            case 270 : this.sprite.setOffset(0,0);   break;
-            case 0   : this.sprite.setOffset(0,150); break;
-            case 180 : this.sprite.setOffset(0,50);  break;
+            case 90  : this.sprite.setOffset(undefined, size * 4); break;
+            case 270 : this.sprite.setOffset(undefined, 0); break;
+            case 0   : this.sprite.setOffset(undefined, size * 6); break;
+            case 180 : this.sprite.setOffset(undefined, size * 2); break;
             }
 
             this.set("face", face);
 
             return this;
         }
-
     });
 
 
@@ -2201,29 +2389,48 @@ TextBox.prototype.draw = function() {
     // -------------------------------------------------- //
 
     Unit.methods({
-
         toJSON: function() {
-            return $.extend({}, this.attributes, this.tile());
+            return Tilekit.extend({}, this.attributes, this.tile());
         },
-
         remove: function() {
             this.grid.removeListener("refresh", this.draw);
         }
+    });
 
+    // Actions
+    // -------------------------------------------------- //
+
+    Unit.methods({
+        attack: function() {
+            this.halt();
+            this.set("animation", "attack");
+            this.emit("attack", this.getTileFront());
+        },
+        spell: function() {
+            this.halt();
+            this.set("animation", "spell");
+            this.emit("spell", this.tile());
+        }
     });
 
     // Rendering Methods
     // -------------------------------------------------- //
 
     Unit.methods({
-
         draw: function() {
-            var pos = this.get("position");
 
+            var pos  = this.get("position"),
+                anim = this.animations[this.get("animation")];
+
+            if (anim.iterations !== 0 && this.sprite.iterations >= anim.iterations) {
+                this.set("animation", "stand");
+            }
+
+            this.sprite.animate();
             this.sprite.setPosition(pos.x, pos.y).draw();
+
             this.emit("draw");
         }
-
     });
 
     // Movement
@@ -2234,17 +2441,18 @@ TextBox.prototype.draw = function() {
         halt: function(trigger) {
 
             var size = this.grid.get('size'),
-                pos  = this.get('position');
+                pos  = this.get('position'),
+                tile = this.tile();
 
-            this.moving = false;
-
-            this.set("position", {
-                x: roundTo(pos.x, size),
-                y: roundTo(pos.y, size)
+            this.set({
+                moving: false,
+                position: {
+                    x: roundTo(pos.x, size),
+                    y: roundTo(pos.y, size)
+                },
+                path: [],
+                animation: "stand"
             });
-
-            var tile = this.tile();
-            this.sprite.currentFrame = 0;
 
             if (trigger) {
                 this.grid.emit("tile:" + tile.x + "," + tile.y);
@@ -2254,57 +2462,51 @@ TextBox.prototype.draw = function() {
 
         },
 
-        move: function(direction, pan, callback) {
-
-            // Prevent any other move actions until the old one finishes
-            if (this.moving) {
-                return false;
-            }
-
-            this.moving = true;
+        move: function move (direction, pan, callback) {
+       
+            this.set("moving", true);
 
             callback = callback || function(){};
-
+            
             // At the very least, get the character facing in the intended direction
             this.setFace(direction);
 
-            var grid      = this.grid,
-                shift     = round(this.grid.shift),
-                size      = grid.get('size'),
-                speed     = this.get("speed"),
-                pos       = this.get("position"),
-                self      = this;
+            var grid  = this.grid,
+                self  = this,
+                
+                size  = grid.get('size'),
+                speed = this.get("speed"),
+                pos   = this.get("position"),
+            
+                delta = findPoint({ x: 0, y: 0 }, 1, -direction),
+                goal  = findPoint(pos, size, -direction);
 
-            // What direction are we dealing with?
-            var delta = Geo.findPoint({ x: 0, y: 0 }, 1, -direction),
-                goal  = Geo.findPoint(pos, size, -direction);
-
+            this.set("animation", "walk");
+            
             // Hit detection
             if (this.detectHit(delta.x * size, delta.y * size) ) {
                 return this.halt(true);
             }
-
+            
             function animate() {
+            
+                var shift = round(grid.shift);
 
-                var pos   = self.get("position");
-
-                self.set("position", {
-                    x: pos.x + delta.x * shift * speed,
-                    y: pos.y + delta.y * shift * speed
-                });
+                pos.x += delta.x * shift * speed;
+                pos.y += delta.y * shift * speed;
 
                 // Do we pan the screen with this character?
                 if (pan) {
                     grid.panTo(self.tile());
                 }
 
-                if (pos.x === goal.x && pos.y === goal.y) {
+                if ( pos.x === goal.x && pos.y === goal.y ) {
                     self.halt(true);
                     return callback.apply(self, [Date.now()]);
                 }
 
-                self.sprite.animate();
                 return requestAnimationFrame(animate);
+
             }
 
             animate();
@@ -2313,38 +2515,39 @@ TextBox.prototype.draw = function() {
 
         },
 
-        setPath: function (destination, options) {
-
+        setPath: function fn(destination, options) {
+     
+            // We use this function to make sure we are always
+            // moving in the correct direction
+            var audit = fn.__audit = Date.now();
+            
             options = options || {};
 
             var self = this,
-                waypoints = [],
-                grid = this.grid,
-                tile = this.tile();
+                tile = this.tile(),
+                path;
+
+            if ( this.is("moving") ) {
+                this.halt();
+            }
 
             if (destination.isUnit) {
                 destination = destination.tile;
             }
-
-            // If it's a tile, then let's do some calculations
 
             tile = {
                 x : round(tile.x),
                 y : round(tile.y)
             };
 
-            waypoints = grid.plotCourse(tile, destination, this.scene.units);
-
-            var path = this.set("path", waypoints);
-
+            path = this.set(
+                "path", this.grid.plotCourse(tile, destination, this.scene.units)
+            );
+            
             function traceSteps() {
-
-                var move = path.shift();
-
-                if (move !== undefined) {
-                    self.move(move, options.pan, traceSteps);
+                if ( path.length && audit === fn.__audit) {
+                    self.move(path.shift(), options.pan, traceSteps);
                 }
-
             }
 
             traceSteps();
@@ -2444,6 +2647,8 @@ TextBox.prototype.draw = function() {
 
 (function(Tilekit) {
 
+    var findPoint = window.Geo.findPoint;
+
     var Character = Tilekit.Character = Tilekit.Unit.extend({
 
         attributes: {
@@ -2465,6 +2670,7 @@ TextBox.prototype.draw = function() {
             var size = scene.grid.get("size");
 
             this.emote_sprite = new Tilekit.Sprite(Tilekit.defaults.emote_sprite, size, size, 0, 0);
+
             this.layers = Tilekit.extend(this.layers, {
 
                 emote: function() {
@@ -2528,6 +2734,22 @@ TextBox.prototype.draw = function() {
 
     });
 
+}(window.Tilekit));
+// Projectile
+// -------------------------------------------------- //
+
+(function(TK) {
+    
+    var Projectile = TK.Unit.extend({
+        
+        initialize: function() {
+            
+        }
+        
+    });
+    
+    TK.Projectile = Projectile;
+    
 }(window.Tilekit));
 // Scene.js
 // -------------------------------------------------- //

@@ -82,25 +82,29 @@
             this.on('ready', function() {
                 
                 var resize = this.get("resize"),
-                    start  = this.get("start_location");
+                    start  = this.get("start_location"),
+                    self = this;
                 
-                if (resize !== false) {
-                    window.addEventListener("resize", function() {
-                        self.fillspace();
-                    });
+                window.addEventListener("resize", function() {
                     self.fillspace();
-                }
+                });
+
+                self.fillspace();
 
                 if (start) {
                     self.panTo(options.start_location);
                 }
+
+                window.onblur = function() {
+                    self.pause();
+                };
 
                 self.begin();
 
             });
 
             function mouseEmit(e) {
-
+                
                 var size   = self.get("size"),
                     center = self.findCenter();
                 
@@ -112,12 +116,12 @@
 
                 self.set("mouse", e);
                 self.emit(e.type, e);
+                
             }
-            
             
             // Events
             // -------------------------------------------------- //
-       
+            
             this.canvas.parentNode.oncontextmenu = function() {
                 return false;
             };
@@ -161,8 +165,7 @@
 
             base.height = debug.height = staging.height = overlay.height = options.canvasHeight || 2000;
             base.width  = debug.width  = staging.width  = overlay.width  = options.canvasWidth || 2000;
-
-
+            
             // Render the initial map state
             // -------------------------------------------------- //
 
@@ -260,12 +263,34 @@
         },
 
         pause: function () {
+            
+            if (this.get("paused")) {
+                return;
+            }
+            
             this.set("paused", true);
+
+            var ctx = this.ctx,
+                canvas = this.canvas;
+            
+            TK.Rectangle(ctx, 0, 0, document.width, document.height, { fill: "rgba(0,0,0,0.6)" });
+
+            TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2 + 1, { align: "center", color: "#000" });
+            TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2,     { align: 'center', color: "#fff" });
+
         },
 
         play: function () {
             this.set("paused", false);
             this.begin();
+        },
+
+        toggle: function() {
+            if ( this.get("paused") ){
+                this.play();
+            } else {
+                this.pause();
+            }
         }
 
     });
@@ -283,7 +308,11 @@
                 tileset = this.get("tileset"),
                 type;
 
-            this.tileSprite = new Sprite(tileset, size, size, 0, 0, this.stagingCtx);
+            this.tileSprite = new Sprite(tileset, {
+                width: size,
+                height: size, 
+                target: this.stagingCtx
+            });
 
             // Finally, we need some calculations to help the tileengine paint the map
             var sampleTileSet = new window.Image();
@@ -312,50 +341,43 @@
 
                             // Add the value
                             type = parseInt(segment.slice(x, x + 2), encoding);
-
+                            offset = self.calculateTileOffset(type);
+                            
                             var tile = self.tilemap[y][x / 2] = self.tilemap[y][x / 2] || new Tile({
+                                grid: self,
                                 x: x / 2,
                                 y: y,
                                 width: size,
                                 height: size,
-                                layers: [0,0,0]
+                                layers: [0,0,0],
+
+                                sprite: new Sprite(tileset, {
+                                    width: size,
+                                    height: size, 
+                                    target: self.baseCtx,
+                                    position: {
+                                        x: size * x / 2,
+                                        y: size * y
+                                    },
+                                    offset: offset
+                                })
                             });
-
-                            self.tilemap[y][x / 2].layers[z] = type;
-
-                            // Draw it on the map
-                            offset = self.calculateTileOffset(type);
-
-                            var posX = size * x / 2,
-                                posY = size * y;
-
-                            self.tileSprite.setOffset(offset.x, offset.y);
-                            self.tileSprite.setPosition(posX, posY);
-                            self.tileSprite.draw(self.baseCtx);
-
-                            // If we're dealing with an overlay, let's add it to that
-                            // layer
-                            if (z > 1 && type > 0) {
-                                self.tileSprite.draw(self.overlayCtx);
-                            }
-
-                            // Helpers for debugging
-                            // -------------------------------------------------- //
-
-                            if (TK.debug && z === 1 && type > 0) {
-                                self.debugCtx.fillStyle = "rgba(200, 100, 0, 0.4)";
-                                self.debugCtx.fillRect(posX, posY, size, size);
-                            }
-
-                            if (TK.debug && z > 1 && type > 0) {
-                                self.debugCtx.fillStyle = "rgba(250, 256, 0, 0.4)";
-                                self.debugCtx.fillRect(posX, posY, size, size);
-                            }
+                            
+                            tile.layers[z] = type;
 
                         }
 
                     }
 
+                }
+                
+                // Render output
+                // -------------------------------------------------- //
+
+                for (var y = 0, height = self.tilemap.length; y < height; y++) {
+                    for (var x = 0, row = self.tilemap[y], depth = row.length; x < depth; x++) {
+                        self.tilemap[y][x].draw();
+                    }
                 }
 
                 self.emit("ready");
@@ -418,8 +440,8 @@
         }
 
     });
-
-
+    
+    
     // Rendering
     // -------------------------------------------------- //
 
@@ -429,8 +451,8 @@
 
             var size = this.get('size');
 
-            this.canvas.width  = roundTo(document.width, size);
-            this.canvas.height = roundTo(document.height, size);
+            this.canvas.width  = roundTo(window.innerWidth, size);
+            this.canvas.height = roundTo(window.innerHeight, size);
 
             return this;
         },
@@ -572,6 +594,7 @@
             }
 
             for (var b in additional) {
+
                 if (additional.hasOwnProperty(b)) {
 
                     var s = additional[b].tile(),
@@ -581,7 +604,9 @@
                         };
                     
                     tilemap[undo.y][undo.x].layers[1] = original[b];
+
                 }
+
             }
 
             return points;

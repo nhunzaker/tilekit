@@ -5,7 +5,7 @@
 
     var map = window.map;
 
-    TK.debug = true;
+//    TK.debug = true;
 
     TK.defaults.character_sprite = "images/character.png";
     TK.defaults.emote_sprite = "images/emote.png";
@@ -47,9 +47,7 @@
     // -------------------------------------------------- //
 
     scene.grid.on("mousedown", function(e) {
-        if (e.which === 3) {
-            nate.setPath(e.tile, { pan: true });
-        }
+        nate.setPath(e.tile, { pan: true });
     });
     
     Mousetrap
@@ -74,11 +72,17 @@
 
     Mousetrap
         .bind("space", function() {
-            var t = nate.getTileFront();
-            
-            scene.findAt(t, function(c) {
-                scene.remove(c.get("name"));
-            });
+            nate.attack();
+        });
+
+    Mousetrap
+        .bind("shift+space", function() {
+            nate.spell();
+        });
+
+    Mousetrap
+        .bind("escape", function() {
+            scene.grid.toggle();
         });
     
     /*

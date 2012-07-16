@@ -1,4 +1,5 @@
 /*global module:false*/
+
 module.exports = function(grunt) {
 
     // Project configuration.
@@ -22,6 +23,7 @@ module.exports = function(grunt) {
                 'src/helpers.js',
                 'src/geo.js',
                 'src/textbox.js',
+                'src/primitives.js',
                 'src/timer.js',
                 'src/sprite.js',
                 'src/entity.js',
@@ -29,6 +31,7 @@ module.exports = function(grunt) {
                 'src/grid.js',
                 'src/unit.js',
                 'src/character.js',
+                'src/projectile.js',
                 'src/scene.js'
             ]
         },

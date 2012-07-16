@@ -13,6 +13,8 @@
 
 (function(Tilekit) {
 
+    var findPoint = window.Geo.findPoint;
+
     var Character = Tilekit.Character = Tilekit.Unit.extend({
 
         attributes: {
@@ -34,6 +36,7 @@
             var size = scene.grid.get("size");
 
             this.emote_sprite = new Tilekit.Sprite(Tilekit.defaults.emote_sprite, size, size, 0, 0);
+
             this.layers = Tilekit.extend(this.layers, {
 
                 emote: function() {

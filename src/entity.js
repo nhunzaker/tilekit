@@ -27,12 +27,30 @@
 
         set: function(key, value) {
 
+            if (typeof key === 'object') {
+
+                for (var k in key) {
+
+                    if (key.hasOwnProperty(k)) {
+                        this.set(k, key[k]);
+                    }
+
+                }
+
+            }
+            
             var previous = this.attributes[key];
 
             this.attributes[key] = value;
-            this.emit(["change", "change:" + value], value, previous);
+
+            this.emit("change", value, previous);
+            this.emit("change:" + key, value, previous);
 
             return this.attributes[key];
+        },
+
+        is: function(key, condition) {
+            return this.get(key) === (condition || true);
         },
 
         // Layers
@@ -76,7 +94,7 @@
             for (var layer in layers) {
 
                 if (layers.hasOwnProperty(layer) && typeof layers[layer] === 'function') {
-                    layers[layer].apply(this, [ctx || this.ctx, Date()]);
+                    layers[layer].apply(this, [ctx || this.ctx, Date(), this]);
                 }
 
             }

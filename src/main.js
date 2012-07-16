@@ -12,6 +12,9 @@
         debug: false,
         
         defaults: {
+            
+            font: "bold 18pt Helvetica",
+
             character_sprite: "character.png",
             emote_sprite: "emote.png"
         },
