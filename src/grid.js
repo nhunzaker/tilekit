@@ -20,7 +20,9 @@
         floorTo = Math.floorTo,
         ceil    = Math.ceil,
         round   = Math.round,
-        roundTo = Math.roundTo;
+        roundTo = Math.roundTo,
+        min     = Math.min,
+        max     = Math.max;
 
     var Grid = TK.Grid = Entity.extend({
         
@@ -32,8 +34,11 @@
                 x: 0,
                 y: 0
             },
-            size: 32
+            size: 32,
+            tileset: []
         },
+
+        scale: 1,
 
         initialize: function(canvas, tilemap, options) {
 
@@ -45,7 +50,7 @@
             // -------------------------------------------------- //
 
             this.attributes = TK.extend({}, this.attributes, {
-                tileset    : tilemap.tileset
+                tileset    : tilemap && tilemap.tileset || []
             }, options, {
                 created_at : Date.now()
             });
@@ -71,7 +76,7 @@
             } else if (canvas instanceof window.HTMLCanvasElement) {
                 this.canvas = canvas;
             } else {
-                throw new Error("Please provide either a canvas or query selector for this Grid to target");
+                this.canvas = document.createElement("canvas");
             }
             
             this.ctx = this.canvas.getContext('2d');
@@ -110,8 +115,8 @@
                 
                 e.tile = self.getTileAt(e.offsetX, e.offsetY);
                 e.position = {
-                    x: (e.tile.x * size) + center.x,
-                    y: (e.tile.y * size) + center.y
+                    x: (e.offsetX * size) + center.x,
+                    y: (e.offsetY * size) + center.y
                 };
 
                 self.set("mouse", e);
@@ -122,14 +127,19 @@
             // Events
             // -------------------------------------------------- //
             
-            this.canvas.parentNode.oncontextmenu = function() {
-                return false;
-            };
+            if (this.canvas.parentNode) { 
+             
+                this.canvas.parentNode.oncontextmenu = function() {
+                    return false;
+                };
+
+            }
 
             this.canvas.addEventListener("click", mouseEmit);
             this.canvas.addEventListener("mousemove", mouseEmit);
             this.canvas.addEventListener("mousedown", mouseEmit);
             this.canvas.addEventListener("mouseup", mouseEmit);
+            this.canvas.addEventListener("mousewheel", mouseEmit);
 
 
             // Portals
@@ -178,8 +188,7 @@
     });
 
     Grid.prototype.zoom = function(scale) {
-        scale = this.scale = scale / 100;
-        this.ctx.scale(scale, scale);
+        this.scale = max(0.5, min(4, this.scale * scale) );
     };
 
 
@@ -306,7 +315,10 @@
             var self = this,
                 size = this.get("size"),
                 tileset = this.get("tileset"),
-                type;
+                type,
+                x, y ,z, 
+                layer, segment, 
+                height, row, depth;
 
             this.tileSprite = new Sprite(tileset, {
                 width: size,
@@ -331,13 +343,13 @@
                 
                 // For every layer...
 
-                for (var z = 0; map[z]; z++) {
+                for (z = 0; map[z]; z++) {
 
-                    for (var y = 0, layer = map[z].trim().split("\n"); layer[y]; y++ ) {
+                    for (y = 0, layer = map[z].trim().split("\n"); layer[y]; y++ ) {
 
                         self.tilemap[y] = self.tilemap[y] || [];
 
-                        for (var x = 0, row = [], segment = layer[y].trim(); segment[x]; x += 2) {
+                        for (x = 0, row = [], segment = layer[y].trim(); segment[x]; x += 2) {
 
                             // Add the value
                             type = parseInt(segment.slice(x, x + 2), encoding);
@@ -374,8 +386,8 @@
                 // Render output
                 // -------------------------------------------------- //
 
-                for (var y = 0, height = self.tilemap.length; y < height; y++) {
-                    for (var x = 0, row = self.tilemap[y], depth = row.length; x < depth; x++) {
+                for (y = 0, height = self.tilemap.length; y < height; y++) {
+                    for (x = 0, row = self.tilemap[y], depth = row.length; x < depth; x++) {
                         self.tilemap[y][x].draw();
                     }
                 }
@@ -399,10 +411,10 @@
             var size   = this.get("size") / 2,
                 scroll = this.get('scroll'),
                 canvas = this.canvas;
-
+            
             return {
-                x : (canvas.width / 2) - size - (scroll.x * 2),
-                y : (canvas.height / 2) - size - (scroll.y * 2)
+                x : (canvas.width / this.scale / 2) - size - (scroll.x * 2),
+                y : (canvas.height / this.scale / 2) - size - (scroll.y * 2) 
             };
 
         },
@@ -538,11 +550,16 @@
 
             // Draw Output
             // -------------------------------------------------- //
+
+            ctx.scale(this.scale, this.scale);
+
             ctx.drawImage(this.staging, center.x, center.y);
             ctx.drawImage(this.overlay, center.x, center.y);
 
             // Draw Layers
             this.renderLayers(ctx);
+
+            ctx.scale(1 / this.scale, 1 / this.scale);
 
             return true;
 

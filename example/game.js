@@ -2,13 +2,13 @@
 // -------------------------------------------------- //
 
 (function(TK) {
-
+    
     var map = window.map;
 
-//    TK.debug = true;
+    // TK.debug = true;
 
     TK.defaults.character_sprite = "images/character.png";
-    TK.defaults.emote_sprite = "images/emote.png";
+    TK.defaults.emote_sprite     = "images/emote.png";
 
     var scene = window.scene = new TK.Scene({
 
@@ -22,7 +22,11 @@
     });
 
     scene.add(map.units);
-    
+
+    var battle = new TK.Battle(scene);
+
+    scene.grid.zoom(1);
+
     var nate = scene.add({
         name: "Nate",
         tile: {
@@ -41,7 +45,14 @@
     
     jim.on("see:nate", function() {
         jim.set("emote", "see");
-    }); 
+    });
+
+    jim.on("change:health", function(next) {
+        if (next < 40) {
+            jim.spell();
+            battle.heal(jim, 100);
+        }
+    });
 
     // Events
     // -------------------------------------------------- //
@@ -49,7 +60,11 @@
     scene.grid.on("mousedown", function(e) {
         nate.setPath(e.tile, { pan: true });
     });
-    
+
+    scene.grid.on("mousewheel", function(e) {
+        scene.grid.zoom(e.wheelDeltaY > 0 ? 0.95 : 1.05);
+    });
+
     Mousetrap
         .bind("up", function() {
             nate.move(90, { pan : true });
@@ -73,11 +88,13 @@
     Mousetrap
         .bind("space", function() {
             nate.attack();
+            battle.damage(nate.getTileFront(), 10, 90);
         });
 
     Mousetrap
         .bind("shift+space", function() {
             nate.spell();
+            setTimeout(battle.heal, 400, nate, 10);
         });
 
     Mousetrap

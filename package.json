@@ -1,0 +1,49 @@
+{
+  "author": "Nate Hunzaker <nate.hunzaker@gmail.com> (http://natehunzaker.com)",
+  "name": "Tilekit",
+  "description": "A game engine written in JS for canvas",
+  "version": "0.1.0",
+  "website" : "",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/nhunzaker/tilekit.git"
+  },
+  "scripts": {
+    "test": "grunt mocha"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "grunt": "*",
+    "growl" : "*",
+    "grunt-mocha": "*",
+    "mocha" : "1.3.0",
+    "chai" : "1.1.1"
+  },
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+
+  "jshint": {
+    "options": {
+      "curly": true,
+      "eqeqeq": true,
+      "immed": true,
+      "latedef": true,
+      "newcap": true,
+      "noarg": true,
+      "sub": true,
+      "undef": true,
+      "boss": true,
+      "eqnull": true,
+      "browser": true,
+      "node": true
+    },
+
+    "globals": {
+      "jQuery": true,
+      "$": true,
+      "console": true
+    }
+  }
+}

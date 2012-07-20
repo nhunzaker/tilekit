@@ -3,10 +3,10 @@
 
 (function(TK) {
     
-    var Projectile = TK.Unit.extend({
+    var Projectile = TK.Entity.extend({
         
-        initialize: function() {
-            
+        initialize: function(options) {
+
         }
         
     });

@@ -24,7 +24,7 @@
     Scene.prototype.add = function(options) {
 
         var slot = 0, c;
-
+        
         // Handle multiple entries
         // -------------------------------------------------- //
 
@@ -46,6 +46,11 @@
             return;
         }
 
+        if (options instanceof Tilekit.Unit) {
+            c = this.units[options.get("name")] = options;
+            return c;
+        }
+
         // Handle single entries
         // -------------------------------------------------- //
         
@@ -65,6 +70,10 @@
 
     // Remove players from map
     Scene.prototype.remove = function(name) {
+
+        if (name instanceof Tilekit.Unit) {
+            name = name.get("name");
+        }
 
         if (!this.units[name]) {
             return;
@@ -112,11 +121,9 @@
 
     Scene.prototype.find = function(condition) {
         
-        var result;
-
         for (var u in this.units) {
             if (this.units.hasOwnProperty(u) && condition(this.units[u])) { 
-                return result; 
+                return this.units[u];
             }
         }
 
@@ -131,15 +138,19 @@
 
         for (var c in this.units) {
             
-            tile2 = this.units[c].tile;
-
-            if (tile.x === tile2.x && tile.y === tile2.y) {
+            if (this.units.hasOwnProperty(c) ) {
                 
-                if (callback) {
-                    callback(this.units[c]);
-                } else {
-                    return this.units[c];
+                tile2 = this.units[c].tile();
+
+                if (tile.x === tile2.x && tile.y === tile2.y) {
+                    
+                    if (callback) {
+                        callback(this.units[c]);
+                    } else {
+                        return this.units[c];
+                    }
                 }
+
             }
 
         }

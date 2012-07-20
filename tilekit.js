@@ -1,8 +1,8 @@
 /*
  * Tilekit
  *
- * Nate Hunzaker <nate.hunzaker@gmail.com>
- * http://natehunzaker.com
+ * Nate Hunzaker <nate.hunzaker@gmail.com> (http://natehunzaker.com)
+ * 
  *
  */
 
@@ -1122,24 +1122,45 @@ TextBox.prototype.draw = function() {
 // Primitives
 // -------------------------------------------------- //
 
-Tilekit.Text = function(ctx, text, x, y, options) {
-    ctx.font = options.font || Tilekit.defaults.font;
-    ctx.fillStyle = options.color || "#fff";
+(function(Tilekit) {
 
-    if (options && options.align === "center") {
-        x -= ctx.measureText(text).width / 2;
-    }
-    
-    ctx.fillText(text, x, y);
-};
+    Tilekit.Text = function(ctx, text, x, y, options) {
+        
+        ctx.globalAlpha = options.alpha || 1;
+        ctx.globalCompositeOperation = options.composite;
 
-Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
-    ctx.fillStyle = options.fill;
-    
-    if (options.fill) {
-        ctx.fillRect(0, 0, width, height);
-    }
-};
+        ctx.font = options.font || Tilekit.defaults.font;
+        ctx.fillStyle = options.color || "#fff";
+
+        if (options && options.align === "center") {
+            x -= ctx.measureText(text).width / 2;
+        }
+        
+        ctx.fillText(text, x, y);
+
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "source-over";
+    };
+
+    Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
+        
+        ctx.globalAlpha = options.alpha || 1;
+        ctx.globalCompositeOperation = options.composite;
+
+        ctx.fillStyle = options.fill;
+        ctx.fillRect(x, y, width, height);
+        
+        if (options.stroke) {
+            ctx.lineWidth = options.lineWidth || 1;
+            ctx.strokestyle = options.stroke;
+            ctx.strokeRect(x + 1, y + 1, width - 1, height - 1);
+        }
+        
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "source-over";
+    };
+
+}(window.Tilekit));
 /**
  * A simple timer
  */
@@ -1405,6 +1426,9 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         initialize: function(options, layers) {
             this.attributes = TK.extend({}, this.attributes, options);
             this.layers     = TK.extend({}, this.layers, layers);
+
+            this.canvas     = document.createElement("canvas");
+            this.ctx        = this.canvas.getContext('2d');
         },
 
         // Getters and Setters
@@ -1445,7 +1469,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         // Layers
         // -------------------------------------------------- //
 
-        addLayer: function(namespace, layer, scope) {
+        addLayer: function(namespace, layer, scope, duration) {
 
             if (!namespace) {
                 throw new Error("Entity#addLayer - Layer requires a namespace");
@@ -1464,10 +1488,23 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 return this;
 
             }
+            
+            var bound = layer.bind(scope || this);
+            
+            bound.created_at = Date.now();
+            bound.expires_at = duration || false;
+            bound.callback = function() {};
+            
+            this.layers[namespace] = bound;
 
-            this.layers[namespace] = layer.bind(scope || this);
+            return {
 
-            return layer;
+                then: function(cb) {
+                    bound.callback = cb;
+                }
+
+            };
+
         },
 
         removeLayer: function(name) {
@@ -1478,12 +1515,22 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
         renderLayers: function(ctx) {
 
-            var layers = this.layers;
+            var layers = this.layers,
+                layer,
+                date = new Date();
 
-            for (var layer in layers) {
+            for (var l in layers) {
 
-                if (layers.hasOwnProperty(layer) && typeof layers[layer] === 'function') {
-                    layers[layer].apply(this, [ctx || this.ctx, Date(), this]);
+                if (layers.hasOwnProperty(l) && typeof layers[l] === 'function') {
+                    
+                    layer = layers[l];
+                    layer(ctx || this.ctx, date, layer.created_at);
+
+                    if (layer.expires_at !== false && date.getTime() - layer.created_at > layer.expires_at) {
+                        this.layers[l].callback.apply(this, date);
+                        delete this.layers[l];
+                    }
+                    
                 }
 
             }
@@ -1587,7 +1634,9 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         floorTo = Math.floorTo,
         ceil    = Math.ceil,
         round   = Math.round,
-        roundTo = Math.roundTo;
+        roundTo = Math.roundTo,
+        min     = Math.min,
+        max     = Math.max;
 
     var Grid = TK.Grid = Entity.extend({
         
@@ -1599,8 +1648,11 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 x: 0,
                 y: 0
             },
-            size: 32
+            size: 32,
+            tileset: []
         },
+
+        scale: 1,
 
         initialize: function(canvas, tilemap, options) {
 
@@ -1612,7 +1664,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             // -------------------------------------------------- //
 
             this.attributes = TK.extend({}, this.attributes, {
-                tileset    : tilemap.tileset
+                tileset    : tilemap && tilemap.tileset || []
             }, options, {
                 created_at : Date.now()
             });
@@ -1638,7 +1690,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             } else if (canvas instanceof window.HTMLCanvasElement) {
                 this.canvas = canvas;
             } else {
-                throw new Error("Please provide either a canvas or query selector for this Grid to target");
+                this.canvas = document.createElement("canvas");
             }
             
             this.ctx = this.canvas.getContext('2d');
@@ -1677,8 +1729,8 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 
                 e.tile = self.getTileAt(e.offsetX, e.offsetY);
                 e.position = {
-                    x: (e.tile.x * size) + center.x,
-                    y: (e.tile.y * size) + center.y
+                    x: (e.offsetX * size) + center.x,
+                    y: (e.offsetY * size) + center.y
                 };
 
                 self.set("mouse", e);
@@ -1689,14 +1741,19 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             // Events
             // -------------------------------------------------- //
             
-            this.canvas.parentNode.oncontextmenu = function() {
-                return false;
-            };
+            if (this.canvas.parentNode) { 
+             
+                this.canvas.parentNode.oncontextmenu = function() {
+                    return false;
+                };
+
+            }
 
             this.canvas.addEventListener("click", mouseEmit);
             this.canvas.addEventListener("mousemove", mouseEmit);
             this.canvas.addEventListener("mousedown", mouseEmit);
             this.canvas.addEventListener("mouseup", mouseEmit);
+            this.canvas.addEventListener("mousewheel", mouseEmit);
 
 
             // Portals
@@ -1745,8 +1802,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
     });
 
     Grid.prototype.zoom = function(scale) {
-        scale = this.scale = scale / 100;
-        this.ctx.scale(scale, scale);
+        this.scale = max(0.5, min(4, this.scale * scale) );
     };
 
 
@@ -1873,7 +1929,10 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             var self = this,
                 size = this.get("size"),
                 tileset = this.get("tileset"),
-                type;
+                type,
+                x, y ,z, 
+                layer, segment, 
+                height, row, depth;
 
             this.tileSprite = new Sprite(tileset, {
                 width: size,
@@ -1898,13 +1957,13 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 
                 // For every layer...
 
-                for (var z = 0; map[z]; z++) {
+                for (z = 0; map[z]; z++) {
 
-                    for (var y = 0, layer = map[z].trim().split("\n"); layer[y]; y++ ) {
+                    for (y = 0, layer = map[z].trim().split("\n"); layer[y]; y++ ) {
 
                         self.tilemap[y] = self.tilemap[y] || [];
 
-                        for (var x = 0, row = [], segment = layer[y].trim(); segment[x]; x += 2) {
+                        for (x = 0, row = [], segment = layer[y].trim(); segment[x]; x += 2) {
 
                             // Add the value
                             type = parseInt(segment.slice(x, x + 2), encoding);
@@ -1941,8 +2000,8 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 // Render output
                 // -------------------------------------------------- //
 
-                for (var y = 0, height = self.tilemap.length; y < height; y++) {
-                    for (var x = 0, row = self.tilemap[y], depth = row.length; x < depth; x++) {
+                for (y = 0, height = self.tilemap.length; y < height; y++) {
+                    for (x = 0, row = self.tilemap[y], depth = row.length; x < depth; x++) {
                         self.tilemap[y][x].draw();
                     }
                 }
@@ -1966,10 +2025,10 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             var size   = this.get("size") / 2,
                 scroll = this.get('scroll'),
                 canvas = this.canvas;
-
+            
             return {
-                x : (canvas.width / 2) - size - (scroll.x * 2),
-                y : (canvas.height / 2) - size - (scroll.y * 2)
+                x : (canvas.width / this.scale / 2) - size - (scroll.x * 2),
+                y : (canvas.height / this.scale / 2) - size - (scroll.y * 2) 
             };
 
         },
@@ -2105,11 +2164,16 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
             // Draw Output
             // -------------------------------------------------- //
+
+            ctx.scale(this.scale, this.scale);
+
             ctx.drawImage(this.staging, center.x, center.y);
             ctx.drawImage(this.overlay, center.x, center.y);
 
             // Draw Layers
             this.renderLayers(ctx);
+
+            ctx.scale(1 / this.scale, 1 / this.scale);
 
             return true;
 
@@ -2212,22 +2276,50 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         isWithinCone = Geo.isWithinCone,
         requestAnimationFrame = window.requestAnimationFrame;
 
-    var Unit = Tilekit.Unit = Tilekit.Entity.extend({
+    var Unit = Tilekit.Unit = Tilekit.Entity.extend();
+
+    // Defaults
+    Unit.statics({
 
         defaults: {
+
             animation: "stand",
-            speed: 1,
+
             face: 270,
+
+            health: 100,
+            maxHealth: 100,
+
+            path: [],
+            position: { x: 0, y: 0 },
+
+            // Senses
+            // ------------------------- //
+
             hearing: 64,
             vision: 96,
             visionCone: 30,
-            path: [],
-            position: {
-                x: 0,
-                y: 0
-            }
-        },
 
+            // Speed
+            // ------------------------- //
+
+            attack_speed: 1,
+            movement_speed: 2,
+
+            // Attributes
+            // ------------------------- //
+
+            strength: 1,
+            dexterity: 1,
+            intelligence: 1,
+            vitality: 1
+            
+        }
+
+    });
+    
+    Unit.methods({
+        
         layers: {},
 
         isUnit: true,
@@ -2252,13 +2344,24 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
             this.scene = scene;
             this.grid  = scene.grid;
-            this.ctx   = scene.grid.stagingCtx;
 
-            this.set("position", {
-                x: options.tile.x * size,
-                y: options.tile.y * size
-            });
-            
+            this.canvas = document.createElement("canvas");
+            this.ctx    = this.canvas.getContext('2d');
+
+            this.canvas.width = 2000;
+            this.canvas.height = 2000;
+
+            options = options || {};
+
+            if (options.tile) {
+
+                this.set("position", {
+                    x: options.tile.x * size,
+                    y: options.tile.y * size
+                });
+
+            }
+
             this.sprite = new Sprite(options.image, {
                 width: size * 2,
                 height: size * 2,
@@ -2266,12 +2369,15 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 padding: size / 2
             });
 
-            grid.on('refresh', this.draw.bind(this), this);
+            if (grid) {
+                this.__boundDraw = this.draw.bind(this);
+                grid.on('refresh', this.__boundDraw, this);
+            }
             
             this.on('draw', function() {
                 self.renderLayers(self.ctx);
             });
-
+            
             this.on("change:animation", function(next, prev) {
 
                 if (prev === next) {
@@ -2292,10 +2398,108 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
             });
 
+            this.on("change:health", function(next, prev) {
+                
+                var pos   = this.get("position"),
+                    size  = this.grid.get("size"),
+                    min   = Math.min,
+                    max   = Math.max,
+                    ratio = min(1, max(0.01, next / this.get("maxHealth")) ),
+                    delta = next - prev;
+                
+                if (next <= 0) {
+                    this.death();
+                }
+                
+                // Did we lose health?
+                if (next < prev) {
+                    
+                    // Yes : Flag Damage
+
+                    this.addLayer("pain-" + Date.now(), function(ctx, date, birth) {
+                        
+                        var now = (date.getTime() - birth) / 1000;
+                        
+                        Tilekit.Text(ctx, delta, pos.x + (size / 2), pos.y - size * now, { 
+                            alpha: min(0.8, 0.1 / now),
+                            align: "center",
+                            color: "red",
+                            font: 8 + (now * 10) + "pt Helvetica"
+                        });
+
+                    }, this, 1000);
+                    
+                    this.addLayer("healthchange", function(ctx, date, birth) {
+                        
+                        var now = (date.getTime() - birth) / 1000;
+                        
+                        Tilekit.Rectangle(ctx, pos.x, pos.y, size, size, { 
+                            fill: "red",
+                            alpha: min(0.6, 0.1 / now),
+                            composite: "source-atop"
+                        });
+                        
+                    }, this, 1000);
+
+                } else {
+
+                    // No : Flag Healing
+
+                    this.addLayer("health" + Date.now(), function(ctx, date, birth) {
+
+                        var now = (date.getTime() - birth) / 1000;
+
+                        Tilekit.Rectangle(ctx, pos.x, pos.y, size, size, { 
+                            fill: "aquamarine",
+                            alpha: min(0.6, 0.1 / now),
+                            composite: "source-atop"
+                        });
+                        
+                    }, this, 1000);
+
+                    this.addLayer("pleasure-" + Date.now(), function(ctx, date, birth) {
+                        
+                        var now = (date.getTime() - birth) / 1000;
+                        
+                        Tilekit.Text(ctx, delta, pos.x + (size / 2), pos.y - size * now, { 
+                            alpha: min(0.8, 0.1 / now),
+                            align: "center",
+                            color: "green",
+                            font: 8 + (now * 10) + "pt Helvetica"
+                        });
+
+                    }, this, 1000);
+                }
+
+                var color = ["red", "crimson", "crimson", 
+                             "orange", "orange", "gold", "yellow",
+                             "lime", "lime", "lime"
+                            ][round(ratio * 9)];
+                
+                this.addLayer("healthbar", function(ctx, date, birth) {
+                    
+                    var pos = this.get("position"),
+                        now = (date.getTime() - birth) / 1000;
+                    
+                    Tilekit.Rectangle(ctx, pos.x, pos.y - size / 4, size, size / 8, { 
+                        fill: "black",
+                        alpha: 0.7
+                    });
+                    
+                    Tilekit.Rectangle(ctx, pos.x, pos.y - size / 4, size * ratio, size / 8, { 
+                        fill: color,
+                        stroke: "rgba(0,0,0,0.25)",
+                        alpha: 0.7
+                    });
+                    
+                }, this, 1500);
+                
+            });
+
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = Tilekit.extend({}, this.defaults, {
+            this.attributes = Tilekit.extend({}, Unit.defaults, {
                 name: name,
                 created_at: Date.now()
             }, this.attributes, options);
@@ -2360,10 +2564,10 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
     Unit.methods({
         getTileFront: function(offset) {
-            return findPoint(this.tile, offset || 1, this.get("face"));
+            return findPoint(this.tile(), offset || 1, -this.get("face"));
         },
         getTileBack: function(offset) {
-            return findPoint(this.tile, offset || 1, -this.get("face"));
+            return findPoint(this.tile(), offset || 1, this.get("face"));
         },
         setFace: function(direction) {
 
@@ -2393,7 +2597,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             return Tilekit.extend({}, this.attributes, this.tile());
         },
         remove: function() {
-            this.grid.removeListener("refresh", this.draw);
+            this.grid.removeListener("refresh", this.__boundDraw);
         }
     });
 
@@ -2406,10 +2610,23 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             this.set("animation", "attack");
             this.emit("attack", this.getTileFront());
         },
+        shoot: function() {
+            this.halt();
+            this.set("animation", "attack");
+            this.emit("attack", this.getTileFront());
+        },
         spell: function() {
             this.halt();
             this.set("animation", "spell");
             this.emit("spell", this.tile());
+        },
+        death: function() {
+
+            var pos = this.get("position"),
+                size = this.grid.get("size");
+
+            this.scene.remove(this);
+
         }
     });
 
@@ -2417,11 +2634,18 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
     // -------------------------------------------------- //
 
     Unit.methods({
-        draw: function() {
 
+        clear: function() {
+            this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
+        },
+
+        draw: function() {
+            
             var pos  = this.get("position"),
                 anim = this.animations[this.get("animation")];
-
+            
+            this.clear();
+            
             if (anim.iterations !== 0 && this.sprite.iterations >= anim.iterations) {
                 this.set("animation", "stand");
             }
@@ -2430,6 +2654,8 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             this.sprite.setPosition(pos.x, pos.y).draw();
 
             this.emit("draw");
+            this.grid.stagingCtx.drawImage(this.canvas, 0,0);
+            
         }
     });
 
@@ -2463,7 +2689,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         },
 
         move: function move (direction, pan, callback) {
-       
+            
             this.set("moving", true);
 
             callback = callback || function(){};
@@ -2475,9 +2701,9 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                 self  = this,
                 
                 size  = grid.get('size'),
-                speed = this.get("speed"),
+                speed = this.get("movement_speed"),
                 pos   = this.get("position"),
-            
+                
                 delta = findPoint({ x: 0, y: 0 }, 1, -direction),
                 goal  = findPoint(pos, size, -direction);
 
@@ -2489,7 +2715,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             }
             
             function animate() {
-            
+                
                 var shift = round(grid.shift);
 
                 pos.x += delta.x * shift * speed;
@@ -2516,7 +2742,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         },
 
         setPath: function fn(destination, options) {
-     
+            
             // We use this function to make sure we are always
             // moving in the correct direction
             var audit = fn.__audit = Date.now();
@@ -2649,17 +2875,22 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
     var findPoint = window.Geo.findPoint;
 
-    var Character = Tilekit.Character = Tilekit.Unit.extend({
+    var Character = Tilekit.Character = Tilekit.Unit.extend();
 
-        attributes: {
+    Character.statics({
+
+        defaults: {
             comment: "",
             emote: "",
-            speed: 2,
-            face: 270,
+            movement_speed: 2,
             hearing: 64,
             vision: 96,
             visionCone: 30
-        },
+        }
+
+    });
+
+    Character.methods({
 
         showName: false,
 
@@ -2667,49 +2898,49 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
             this.supr(name, scene, options);
 
+            Tilekit.extend(this.attributes, Character.defaults, options);
+
             var size = scene.grid.get("size");
 
             this.emote_sprite = new Tilekit.Sprite(Tilekit.defaults.emote_sprite, size, size, 0, 0);
 
-            this.layers = Tilekit.extend(this.layers, {
+            this.addLayer("emote", function() {
 
-                emote: function() {
+                var emote = this.emote_sprite,
+                    pos   = this.get("position"),
+                    size  = this.grid.get('size'),
+                    which = {
 
-                    var emote = this.emote_sprite,
-                        pos   = this.get("position"),
-                        size  = this.grid.get('size'),
-                        which = {
+                        // Emotions
+                        "surprised" : [0, 0],
+                        "sad"       : [32, 0],
+                        "love"      : [64, 0],
+                        "power"     : [96, 0],
+                        "happy"     : [128, 0],
+                        "disguise"  : [160, 0],
 
-                            // Emotions
-                            "surprised" : [0, 0],
-                            "sad"       : [32, 0],
-                            "love"      : [64, 0],
-                            "power"     : [96, 0],
-                            "happy"     : [128, 0],
-                            "disguise"  : [160, 0],
+                        // Events
+                        "poison"    : [0, 32],
+                        "quest"     : [32, 32],
+                        "idea"      : [64, 32],
 
-                            // Events
-                            "poison"    : [0, 32],
-                            "quest"     : [32, 32],
-                            "idea"      : [64, 32],
+                        // Sense
+                        "see"       : [0, 64],
+                        "hear"      : [32, 64]
 
-                            // Sense
-                            "see"       : [0, 64],
-                            "hear"      : [32, 64]
+                    }[this.get("emote")] || false;
 
-                        }[this.get("emote")] || false;
+                if (!which) {
+                    return false;
+                }
 
-                    if (!which) {
-                        return false;
-                    }
+                emote.setPosition(pos.x, pos.y - (size + (Math.cos( Date.now() / 500) * 2) ) );
+                emote.setOffset( which[0], which[1] );
+                emote.draw(this.ctx);
 
-                    emote.setPosition(pos.x, pos.y - (size + (Math.cos( Date.now() / 500) * 2) ) );
-                    emote.setOffset( which[0], which[1] );
-                    emote.draw(this.ctx);
+            }, this);
 
-                },
-
-                renderName: function() {
+            this.addLayer("renderName", function() {
 
                     if (!this.showName) {
                         return;
@@ -2727,11 +2958,8 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
                                (this.tile.x * 32) - (textWidth / 10),
                                (this.tile.y * 31)
                               );
-                }
-                
-            });
+            }, this);
         }
-
     });
 
 }(window.Tilekit));
@@ -2740,10 +2968,10 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
 (function(TK) {
     
-    var Projectile = TK.Unit.extend({
+    var Projectile = TK.Entity.extend({
         
-        initialize: function() {
-            
+        initialize: function(options) {
+
         }
         
     });
@@ -2777,7 +3005,7 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
     Scene.prototype.add = function(options) {
 
         var slot = 0, c;
-
+        
         // Handle multiple entries
         // -------------------------------------------------- //
 
@@ -2799,6 +3027,11 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
             return;
         }
 
+        if (options instanceof Tilekit.Unit) {
+            c = this.units[options.get("name")] = options;
+            return c;
+        }
+
         // Handle single entries
         // -------------------------------------------------- //
         
@@ -2818,6 +3051,10 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
     // Remove players from map
     Scene.prototype.remove = function(name) {
+
+        if (name instanceof Tilekit.Unit) {
+            name = name.get("name");
+        }
 
         if (!this.units[name]) {
             return;
@@ -2865,11 +3102,9 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
     Scene.prototype.find = function(condition) {
         
-        var result;
-
         for (var u in this.units) {
             if (this.units.hasOwnProperty(u) && condition(this.units[u])) { 
-                return result; 
+                return this.units[u];
             }
         }
 
@@ -2884,15 +3119,19 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
 
         for (var c in this.units) {
             
-            tile2 = this.units[c].tile;
-
-            if (tile.x === tile2.x && tile.y === tile2.y) {
+            if (this.units.hasOwnProperty(c) ) {
                 
-                if (callback) {
-                    callback(this.units[c]);
-                } else {
-                    return this.units[c];
+                tile2 = this.units[c].tile();
+
+                if (tile.x === tile2.x && tile.y === tile2.y) {
+                    
+                    if (callback) {
+                        callback(this.units[c]);
+                    } else {
+                        return this.units[c];
+                    }
                 }
+
             }
 
         }
@@ -2917,5 +3156,51 @@ Tilekit.Rectangle = function(ctx, x, y, width, height, options) {
         };
 
     };
+
+}(window.Tilekit));
+// Battle Mechanics
+// -------------------------------------------------- //
+
+(function(TK) {
+
+    // Combat
+    // -------------------------------------------------- //
+    
+    var Battle = TK.Battle = window.klass({
+        
+        initialize: function(scene) {
+            
+            if (!scene) { 
+                throw new Error("Tilekit::Battle#initialize requires a scene");
+            }
+
+            this.scene = scene;
+        },
+        
+        damage: function(tile, amount) {
+            
+            var target, health;
+            target = tile instanceof TK.Unit ? tile : this.scene.findAt(tile);
+            
+            if (target) {
+                health = target.get("health");
+                target.set("health", health - amount);
+            }
+            
+        },
+
+        heal: function(tile, amount) {
+
+            var target, health;
+            target = tile instanceof TK.Unit ? tile : this.scene.findAt(tile);
+            
+            if (target) {
+                health = target.get("health");
+                target.set("health", health + amount);
+            }
+        }
+
+    });
+
 
 }(window.Tilekit));

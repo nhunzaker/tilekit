@@ -16,6 +16,9 @@
         initialize: function(options, layers) {
             this.attributes = TK.extend({}, this.attributes, options);
             this.layers     = TK.extend({}, this.layers, layers);
+
+            this.canvas     = document.createElement("canvas");
+            this.ctx        = this.canvas.getContext('2d');
         },
 
         // Getters and Setters
@@ -56,7 +59,7 @@
         // Layers
         // -------------------------------------------------- //
 
-        addLayer: function(namespace, layer, scope) {
+        addLayer: function(namespace, layer, scope, duration) {
 
             if (!namespace) {
                 throw new Error("Entity#addLayer - Layer requires a namespace");
@@ -75,10 +78,23 @@
                 return this;
 
             }
+            
+            var bound = layer.bind(scope || this);
+            
+            bound.created_at = Date.now();
+            bound.expires_at = duration || false;
+            bound.callback = function() {};
+            
+            this.layers[namespace] = bound;
 
-            this.layers[namespace] = layer.bind(scope || this);
+            return {
 
-            return layer;
+                then: function(cb) {
+                    bound.callback = cb;
+                }
+
+            };
+
         },
 
         removeLayer: function(name) {
@@ -89,12 +105,22 @@
 
         renderLayers: function(ctx) {
 
-            var layers = this.layers;
+            var layers = this.layers,
+                layer,
+                date = new Date();
 
-            for (var layer in layers) {
+            for (var l in layers) {
 
-                if (layers.hasOwnProperty(layer) && typeof layers[layer] === 'function') {
-                    layers[layer].apply(this, [ctx || this.ctx, Date(), this]);
+                if (layers.hasOwnProperty(l) && typeof layers[l] === 'function') {
+                    
+                    layer = layers[l];
+                    layer(ctx || this.ctx, date, layer.created_at);
+
+                    if (layer.expires_at !== false && date.getTime() - layer.created_at > layer.expires_at) {
+                        this.layers[l].callback.apply(this, date);
+                        delete this.layers[l];
+                    }
+                    
                 }
 
             }

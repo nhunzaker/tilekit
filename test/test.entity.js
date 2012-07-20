@@ -58,7 +58,30 @@ describe("Tilekit.Entity", function() {
         expect(truthy).to.be.ok;
 
     });
+    
+    it("layers have a timestamp with their creation time", function() {
+        var e = new Tilekit.Entity();
+        e.addLayer("foo", function() {});
+        expect(e.layers["foo"].created_at).to.exist;
+    });
 
+    it("layers can have an expiration time", function() {
+        var e = new Tilekit.Entity();
+        e.addLayer("foo", function() {}, e, 2000);
+        expect(e.layers["foo"].expires_at).to.equal(2000);
+    });
+
+    it("layers", function() {
+
+        var e = new Tilekit.Entity();
+
+        e.addLayer("foo", function() {}, e, -1);
+        e.renderLayers();
+
+        expect(e.layers.foo).to.not.exist;
+
+    });
+    
     it("has events", function() {
 
         var e = new Tilekit.Entity(),

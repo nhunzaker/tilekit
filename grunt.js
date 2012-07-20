@@ -2,16 +2,26 @@
 
 module.exports = function(grunt) {
 
-    // Project configuration.
+    var config = require("./package.json"),
+        growl = require('growl');
+
+    ['warn', 'fatal', 'error'].forEach(function(level) {
+        
+        grunt.utils.hooker.hook(grunt.fail, level, function(opt) {
+            growl(opt.name, { title: opt.message, image: 'Console' });
+        });
+
+    });
+
     grunt.initConfig({
 
         meta: {
-            version: '0.1.0',
+            version: config.version,
             banner: ['/*',
-                     ' Tilekit',               
+                     ' ' + config.name,
                      '',
-                     ' Nate Hunzaker <nate.hunzaker@gmail.com>',
-                     ' http://natehunzaker.com',
+                     ' ' + config.author,
+                     ' ' + config.website,
                      '',
                      '/'].join("\n *") + "\n"
 
@@ -32,7 +42,8 @@ module.exports = function(grunt) {
                 'src/unit.js',
                 'src/character.js',
                 'src/projectile.js',
-                'src/scene.js'
+                'src/scene.js',
+                'src/battle.js'
             ]
         },
 
@@ -55,38 +66,25 @@ module.exports = function(grunt) {
             }
         },
 
-        watch: {
-            files: ['./grunt.js', '<config:lint.files>'],
-            tasks: 'lint concat min'
+        mocha: {
+            all: "test/index.html"
         },
 
-        jshint: {
+        watch: {
 
-            options: {
-                curly: true,
-                eqeqeq: true,
-                immed: true,
-                latedef: true,
-                newcap: true,
-                noarg: true,
-                sub: true,
-                undef: true,
-                boss: true,
-                eqnull: true,
-                browser: true,
-                node: true
-            },
-
-            globals: {
-                jQuery: true,
-                $: true,
-                console: true
+            source: {
+                files: ['./grunt.js', '<config:lint.files>'],
+                tasks: 'lint concat min'
             }
-        }
+
+        },
+
+        jshint: config.jshint
 
     });
 
     // Default task.
     grunt.registerTask('default', 'lint concat min');
+    grunt.loadNpmTasks('grunt-mocha');
 
 };
