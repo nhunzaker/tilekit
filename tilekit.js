@@ -1855,7 +1855,12 @@ TextBox.prototype.draw = function() {
         },
 
         isBlocking: function(tile) {
-            return this.tilemap[tile.y][tile.x].isBlocking();
+            
+            var y = round(tile.y),
+                x = round(tile.x);
+            
+            return this.tilemap[y][x].isBlocking();
+
         }
 
     });
@@ -2690,7 +2695,15 @@ TextBox.prototype.draw = function() {
 
         move: function move (direction, pan, callback) {
             
+            if (this.get("moving")) {
+                return false;
+            }
+            
             this.set("moving", true);
+
+            // We use this function to make sure we are always
+            // moving in the correct direction
+            var audit = move.__audit = Date.now();
 
             callback = callback || function(){};
             
@@ -2726,11 +2739,11 @@ TextBox.prototype.draw = function() {
                     grid.panTo(self.tile());
                 }
 
-                if ( pos.x === goal.x && pos.y === goal.y ) {
+                if ( pos.x === goal.x && pos.y === goal.y || audit !== move.__audit) {
                     self.halt(true);
                     return callback.apply(self, [Date.now()]);
                 }
-
+                
                 return requestAnimationFrame(animate);
 
             }
