@@ -782,9 +782,7 @@
         debug: false,
         
         defaults: {
-            
             font: "bold 18pt Helvetica",
-
             character_sprite: "character.png",
             emote_sprite: "emote.png"
         },
@@ -829,6 +827,8 @@
         }
 
     };
+    
+    Tilekit.extend(Tilekit, new window.EventEmitter2());
 
     window.TK = window.Tilekit = Tilekit;
 
@@ -1160,6 +1160,17 @@ TextBox.prototype.draw = function() {
         ctx.globalCompositeOperation = "source-over";
     };
 
+    Tilekit.Icon = function(ctx, image, x, y, options) {
+        
+        ctx.globalAlpha = options.alpha || 1;
+        ctx.globalCompositeOperation = options.composite;
+        
+        ctx.drawImage(image, x, y);
+        
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = "source-over";
+    };
+
 }(window.Tilekit));
 /**
  * A simple timer
@@ -1471,6 +1482,8 @@ TextBox.prototype.draw = function() {
 
         addLayer: function(namespace, layer, scope, duration) {
 
+            var self = this;
+
             if (!namespace) {
                 throw new Error("Entity#addLayer - Layer requires a namespace");
             }
@@ -1727,7 +1740,8 @@ TextBox.prototype.draw = function() {
                 var size   = self.get("size"),
                     center = self.findCenter();
                 
-                e.tile = self.getTileAt(e.offsetX, e.offsetY);
+                e.tile = self.getTileAt({ x: e.offsetX, y: e.offsetY });
+
                 e.position = {
                     x: (e.offsetX * size) + center.x,
                     y: (e.offsetY * size) + center.y
@@ -1901,7 +1915,7 @@ TextBox.prototype.draw = function() {
             var ctx = this.ctx,
                 canvas = this.canvas;
             
-            TK.Rectangle(ctx, 0, 0, document.width, document.height, { fill: "rgba(0,0,0,0.6)" });
+            TK.Rectangle(ctx, 0, 0, window.innerWidth, window.innerWidth, { fill: "rgba(0,0,0,0.6)" });
 
             TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2 + 1, { align: "center", color: "#000" });
             TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2,     { align: 'center', color: "#fff" });
@@ -2038,17 +2052,20 @@ TextBox.prototype.draw = function() {
 
         },
 
-        getTileAt: function(x, y) {
+        getTileAt: function(position) {
 
             var size   = this.get('size'),
-                center = this.findCenter();
+                center = this.findCenter(),
 
-            x = this.canvas.width - (this.canvas.width - x) - center.x;
-            y = this.canvas.height - (this.canvas.height - y) - center.y;
+                x = position.x + center.x,
+                y = position.y + center.y;
+
+            x = floorTo(position.x / size, size);
+            y = floorTo(position.y / size, size);
 
             return {
-                x: floorTo(x, size) / size,
-                y: floorTo(y, size) / size
+                x: x,
+                y: y
             };
         },
 
@@ -2082,8 +2099,8 @@ TextBox.prototype.draw = function() {
 
             var size = this.get('size');
 
-            this.canvas.width  = roundTo(window.innerWidth, size);
-            this.canvas.height = roundTo(window.innerHeight, size);
+            this.canvas.width  = floorTo(window.innerWidth, size);
+            this.canvas.height = floorTo(window.innerHeight, size);
 
             return this;
         },
@@ -2295,6 +2312,9 @@ TextBox.prototype.draw = function() {
             health: 100,
             maxHealth: 100,
 
+            energy: 100,
+            maxEnergy: 100,
+
             path: [],
             position: { x: 0, y: 0 },
 
@@ -2317,7 +2337,12 @@ TextBox.prototype.draw = function() {
             strength: 1,
             dexterity: 1,
             intelligence: 1,
-            vitality: 1
+            vitality: 1,
+
+            // Abilities
+            // ------------------------- //
+            
+            spells: {}
             
         }
 
@@ -2382,7 +2407,7 @@ TextBox.prototype.draw = function() {
             this.on('draw', function() {
                 self.renderLayers(self.ctx);
             });
-            
+
             this.on("change:animation", function(next, prev) {
 
                 if (prev === next) {
@@ -2571,9 +2596,21 @@ TextBox.prototype.draw = function() {
         getTileFront: function(offset) {
             return findPoint(this.tile(), offset || 1, -this.get("face"));
         },
+
+        getPositionFront: function(offset) {
+            var size = this.grid.get("size");
+            return findPoint(this.get("position"), size * (offset || 1), -this.get("face"));
+        },
+
         getTileBack: function(offset) {
             return findPoint(this.tile(), offset || 1, this.get("face"));
         },
+
+        getPositionBack: function(offset) {
+            var size = this.grid.get("size");
+            return findPoint(this.get("position"), size * (offset || 1), this.get("face"));
+        },
+
         setFace: function(direction) {
 
             var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
@@ -2606,25 +2643,50 @@ TextBox.prototype.draw = function() {
         }
     });
 
+
     // Actions
     // -------------------------------------------------- //
 
     Unit.methods({
+
         attack: function() {
             this.halt();
             this.set("animation", "attack");
-            this.emit("attack", this.getTileFront());
+            Tilekit.emit("damage", this.getPositionFront(), this);
         },
+
         shoot: function() {
+
+            var size = this.grid.get("size"),
+                range = Math.roundTo(this.get("vision") / size, size);
+
             this.halt();
+
             this.set("animation", "attack");
-            this.emit("attack", this.getTileFront());
+
+            Tilekit.Projectile({
+
+                source: this,
+
+                from: this.get("position"),
+
+                distance: this.get("vision") * 2,
+                angle: this.get("face"),
+                scene: this.scene
+            });
+
         },
-        spell: function() {
+
+        castSpell: function(name, target) {
+
             this.halt();
+
             this.set("animation", "spell");
-            this.emit("spell", this.tile());
+            this.get("spells")[name].apply(this, target, Date.now());
+            this.emit("spell", this.get("position"));
+
         },
+
         death: function() {
 
             var pos = this.get("position"),
@@ -2633,24 +2695,23 @@ TextBox.prototype.draw = function() {
             this.scene.remove(this);
 
         }
+
     });
 
     // Rendering Methods
     // -------------------------------------------------- //
 
     Unit.methods({
-
         clear: function() {
             this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
         },
-
         draw: function() {
             
             var pos  = this.get("position"),
                 anim = this.animations[this.get("animation")];
             
             this.clear();
-            
+
             if (anim.iterations !== 0 && this.sprite.iterations >= anim.iterations) {
                 this.set("animation", "stand");
             }
@@ -2659,6 +2720,7 @@ TextBox.prototype.draw = function() {
             this.sprite.setPosition(pos.x, pos.y).draw();
 
             this.emit("draw");
+
             this.grid.stagingCtx.drawImage(this.canvas, 0,0);
             
         }
@@ -2694,31 +2756,31 @@ TextBox.prototype.draw = function() {
         },
 
         move: function move (direction, pan, callback) {
-            
+
             if (this.get("moving")) {
                 return false;
             }
-            
-            this.set("moving", true);
 
-            // We use this function to make sure we are always
-            // moving in the correct direction
-            var audit = move.__audit = Date.now();
+            this.set("moving", true);
 
             callback = callback || function(){};
             
             // At the very least, get the character facing in the intended direction
             this.setFace(direction);
 
-            var grid  = this.grid,
-                self  = this,
+            var grid   = this.grid,
+                self   = this,
                 
-                size  = grid.get('size'),
-                speed = this.get("movement_speed"),
-                pos   = this.get("position"),
+                size   = grid.get('size'),
+                speed  = this.get("movement_speed"),
+                pos    = this.get("position"),
                 
-                delta = findPoint({ x: 0, y: 0 }, 1, -direction),
-                goal  = findPoint(pos, size, -direction);
+                delta  = findPoint({ x: 0, y: 0 }, 1, -direction),
+
+                limitX = delta.x > 0 ? Math.min : Math.max,
+                limitY = delta.y > 0 ? Math.min : Math.max,
+
+                goal   = findPoint(pos, size, -direction);
 
             this.set("animation", "walk");
             
@@ -2726,20 +2788,20 @@ TextBox.prototype.draw = function() {
             if (this.detectHit(delta.x * size, delta.y * size) ) {
                 return this.halt(true);
             }
-            
+
             function animate() {
                 
                 var shift = round(grid.shift);
 
-                pos.x += delta.x * shift * speed;
-                pos.y += delta.y * shift * speed;
-
+                pos.x = limitX(goal.x, pos.x + delta.x * shift * speed);
+                pos.y = limitY(goal.y, pos.y + delta.y * shift * speed);
+            
                 // Do we pan the screen with this character?
                 if (pan) {
                     grid.panTo(self.tile());
                 }
 
-                if ( pos.x === goal.x && pos.y === goal.y || audit !== move.__audit) {
+                if ( pos.x === goal.x && pos.y === goal.y ) {
                     self.halt(true);
                     return callback.apply(self, [Date.now()]);
                 }
@@ -2870,6 +2932,23 @@ TextBox.prototype.draw = function() {
         }
     });
 
+
+
+    // Spell casting
+    // -------------------------------------------------- //
+
+    Unit.methods({
+        
+        addSpell: function(name, fn) {
+            var spells = this.get("spells");
+            spells[name] = fn;
+        },
+        
+        removeSpell: function(name) {
+            delete this.get("spells")[name];
+        }
+
+    });
 }(window.Tilekit));
 // Character.js
 //
@@ -2981,21 +3060,61 @@ TextBox.prototype.draw = function() {
 
 (function(TK) {
     
-    var Projectile = TK.Entity.extend({
+    var findPoint = window.Geo.findPoint;
+    
+    var Projectile = TK.Projectile = function(options) {
         
-        initialize: function(options) {
+        var settings = TK.extend({
+            
+            damage: 0,
+            
+            source: null,
 
-        }
+            distance: 300,
+            speed: 10,
+            angle: 0,
+
+            scene: null
+
+        }, options);
         
-    });
-    
-    TK.Projectile = Projectile;
-    
-}(window.Tilekit));
+        var scene  = settings.scene,
+            grid   = settings.scene.grid,
+            travel = 0,
+            offset = grid.get("size") / 2,
+            name   = "projectile" + Date.now(),
+            from   = settings.source.get("position");
+
+        grid.addLayer(name, function layer(ctx) {
+
+            var center = grid.findCenter();
+
+            travel += settings.speed;
+            
+            var target = findPoint(settings.from, travel, -settings.angle);
+
+            TK.emit("damage", target, settings.source);
+
+            TK.Rectangle(ctx, target.x + center.x + offset, target.y + center.y, 5, 5, {
+                fill: "#000"
+            });
+            
+            if (travel > settings.distance) {
+                grid.removeLayer(name);
+            }
+
+        });
+
+    };
+        
+    }(window.Tilekit));
 // Scene.js
 // -------------------------------------------------- //
 
 (function(Tilekit) {
+
+    var Geo = window.Geo,
+        findDistance = Geo.findDistance;
     
     var Character = Tilekit.Character,
         TextBox = window.Textbox;
@@ -3126,25 +3245,24 @@ TextBox.prototype.draw = function() {
     };
 
     // Find a character at a specific tile
-    Scene.prototype.findAt = function(tile, callback) {
+    Scene.prototype.findAt = function(position, range) {
 
-        var tile2;
+        var area = range || this.grid.get("size"),
+            target,
+            distance;
 
         for (var c in this.units) {
             
-            if (this.units.hasOwnProperty(c) ) {
-                
-                tile2 = this.units[c].tile();
+            if (!this.units.hasOwnProperty(c) ) {
+                continue;
+            }
+            
+            target = this.units[c].get("position");
+            
+            distance = findDistance(position, target);
 
-                if (tile.x === tile2.x && tile.y === tile2.y) {
-                    
-                    if (callback) {
-                        callback(this.units[c]);
-                    } else {
-                        return this.units[c];
-                    }
-                }
-
+            if (distance < area) {
+                return this.units[c];
             }
 
         }
@@ -3190,27 +3308,28 @@ TextBox.prototype.draw = function() {
             this.scene = scene;
         },
         
-        damage: function(tile, amount) {
+        damage: function(origin, actor) {
             
             var target, health;
-            target = tile instanceof TK.Unit ? tile : this.scene.findAt(tile);
+            target = origin instanceof TK.Unit ? origin : this.scene.findAt(origin);
             
-            if (target) {
+            if (target && target !== actor) {
                 health = target.get("health");
-                target.set("health", health - amount);
+                target.set("health", health - actor.get("strength"));
             }
             
         },
 
-        heal: function(tile, amount) {
+        heal: function(origin, actor) {
 
             var target, health;
-            target = tile instanceof TK.Unit ? tile : this.scene.findAt(tile);
-            
+            target = origin instanceof TK.Unit ? origin : this.scene.findAt(origin);
+
             if (target) {
                 health = target.get("health");
-                target.set("health", health + amount);
+                target.set("health", health + actor.get("intelligence"));
             }
+            
         }
 
     });

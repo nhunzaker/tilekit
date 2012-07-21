@@ -61,6 +61,8 @@
 
         addLayer: function(namespace, layer, scope, duration) {
 
+            var self = this;
+
             if (!namespace) {
                 throw new Error("Entity#addLayer - Layer requires a namespace");
             }

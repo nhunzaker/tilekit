@@ -113,7 +113,8 @@
                 var size   = self.get("size"),
                     center = self.findCenter();
                 
-                e.tile = self.getTileAt(e.offsetX, e.offsetY);
+                e.tile = self.getTileAt({ x: e.offsetX, y: e.offsetY });
+
                 e.position = {
                     x: (e.offsetX * size) + center.x,
                     y: (e.offsetY * size) + center.y
@@ -287,7 +288,7 @@
             var ctx = this.ctx,
                 canvas = this.canvas;
             
-            TK.Rectangle(ctx, 0, 0, document.width, document.height, { fill: "rgba(0,0,0,0.6)" });
+            TK.Rectangle(ctx, 0, 0, window.innerWidth, window.innerWidth, { fill: "rgba(0,0,0,0.6)" });
 
             TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2 + 1, { align: "center", color: "#000" });
             TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2,     { align: 'center', color: "#fff" });
@@ -424,17 +425,20 @@
 
         },
 
-        getTileAt: function(x, y) {
+        getTileAt: function(position) {
 
             var size   = this.get('size'),
-                center = this.findCenter();
+                center = this.findCenter(),
 
-            x = this.canvas.width - (this.canvas.width - x) - center.x;
-            y = this.canvas.height - (this.canvas.height - y) - center.y;
+                x = position.x + center.x,
+                y = position.y + center.y;
+
+            x = floorTo(position.x / size, size);
+            y = floorTo(position.y / size, size);
 
             return {
-                x: floorTo(x, size) / size,
-                y: floorTo(y, size) / size
+                x: x,
+                y: y
             };
         },
 
@@ -468,8 +472,8 @@
 
             var size = this.get('size');
 
-            this.canvas.width  = roundTo(window.innerWidth, size);
-            this.canvas.height = roundTo(window.innerHeight, size);
+            this.canvas.width  = floorTo(window.innerWidth, size);
+            this.canvas.height = floorTo(window.innerHeight, size);
 
             return this;
         },

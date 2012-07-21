@@ -17,27 +17,28 @@
             this.scene = scene;
         },
         
-        damage: function(tile, amount) {
+        damage: function(origin, actor) {
             
             var target, health;
-            target = tile instanceof TK.Unit ? tile : this.scene.findAt(tile);
+            target = origin instanceof TK.Unit ? origin : this.scene.findAt(origin);
             
-            if (target) {
+            if (target && target !== actor) {
                 health = target.get("health");
-                target.set("health", health - amount);
+                target.set("health", health - actor.get("strength"));
             }
             
         },
 
-        heal: function(tile, amount) {
+        heal: function(origin, actor) {
 
             var target, health;
-            target = tile instanceof TK.Unit ? tile : this.scene.findAt(tile);
-            
+            target = origin instanceof TK.Unit ? origin : this.scene.findAt(origin);
+
             if (target) {
                 health = target.get("health");
-                target.set("health", health + amount);
+                target.set("health", health + actor.get("intelligence"));
             }
+            
         }
 
     });

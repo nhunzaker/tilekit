@@ -2,6 +2,9 @@
 // -------------------------------------------------- //
 
 (function(Tilekit) {
+
+    var Geo = window.Geo,
+        findDistance = Geo.findDistance;
     
     var Character = Tilekit.Character,
         TextBox = window.Textbox;
@@ -132,25 +135,24 @@
     };
 
     // Find a character at a specific tile
-    Scene.prototype.findAt = function(tile, callback) {
+    Scene.prototype.findAt = function(position, range) {
 
-        var tile2;
+        var area = range || this.grid.get("size"),
+            target,
+            distance;
 
         for (var c in this.units) {
             
-            if (this.units.hasOwnProperty(c) ) {
-                
-                tile2 = this.units[c].tile();
+            if (!this.units.hasOwnProperty(c) ) {
+                continue;
+            }
+            
+            target = this.units[c].get("position");
+            
+            distance = findDistance(position, target);
 
-                if (tile.x === tile2.x && tile.y === tile2.y) {
-                    
-                    if (callback) {
-                        callback(this.units[c]);
-                    } else {
-                        return this.units[c];
-                    }
-                }
-
+            if (distance < area) {
+                return this.units[c];
             }
 
         }

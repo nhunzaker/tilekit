@@ -41,6 +41,9 @@
             health: 100,
             maxHealth: 100,
 
+            energy: 100,
+            maxEnergy: 100,
+
             path: [],
             position: { x: 0, y: 0 },
 
@@ -63,7 +66,12 @@
             strength: 1,
             dexterity: 1,
             intelligence: 1,
-            vitality: 1
+            vitality: 1,
+
+            // Abilities
+            // ------------------------- //
+            
+            spells: {}
             
         }
 
@@ -128,7 +136,7 @@
             this.on('draw', function() {
                 self.renderLayers(self.ctx);
             });
-            
+
             this.on("change:animation", function(next, prev) {
 
                 if (prev === next) {
@@ -317,9 +325,21 @@
         getTileFront: function(offset) {
             return findPoint(this.tile(), offset || 1, -this.get("face"));
         },
+
+        getPositionFront: function(offset) {
+            var size = this.grid.get("size");
+            return findPoint(this.get("position"), size * (offset || 1), -this.get("face"));
+        },
+
         getTileBack: function(offset) {
             return findPoint(this.tile(), offset || 1, this.get("face"));
         },
+
+        getPositionBack: function(offset) {
+            var size = this.grid.get("size");
+            return findPoint(this.get("position"), size * (offset || 1), this.get("face"));
+        },
+
         setFace: function(direction) {
 
             var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
@@ -352,25 +372,50 @@
         }
     });
 
+
     // Actions
     // -------------------------------------------------- //
 
     Unit.methods({
+
         attack: function() {
             this.halt();
             this.set("animation", "attack");
-            this.emit("attack", this.getTileFront());
+            Tilekit.emit("damage", this.getPositionFront(), this);
         },
+
         shoot: function() {
+
+            var size = this.grid.get("size"),
+                range = Math.roundTo(this.get("vision") / size, size);
+
             this.halt();
+
             this.set("animation", "attack");
-            this.emit("attack", this.getTileFront());
+
+            Tilekit.Projectile({
+
+                source: this,
+
+                from: this.get("position"),
+
+                distance: this.get("vision") * 2,
+                angle: this.get("face"),
+                scene: this.scene
+            });
+
         },
-        spell: function() {
+
+        castSpell: function(name, target) {
+
             this.halt();
+
             this.set("animation", "spell");
-            this.emit("spell", this.tile());
+            this.get("spells")[name].apply(this, target, Date.now());
+            this.emit("spell", this.get("position"));
+
         },
+
         death: function() {
 
             var pos = this.get("position"),
@@ -379,24 +424,23 @@
             this.scene.remove(this);
 
         }
+
     });
 
     // Rendering Methods
     // -------------------------------------------------- //
 
     Unit.methods({
-
         clear: function() {
             this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
         },
-
         draw: function() {
             
             var pos  = this.get("position"),
                 anim = this.animations[this.get("animation")];
             
             this.clear();
-            
+
             if (anim.iterations !== 0 && this.sprite.iterations >= anim.iterations) {
                 this.set("animation", "stand");
             }
@@ -405,6 +449,7 @@
             this.sprite.setPosition(pos.x, pos.y).draw();
 
             this.emit("draw");
+
             this.grid.stagingCtx.drawImage(this.canvas, 0,0);
             
         }
@@ -440,31 +485,31 @@
         },
 
         move: function move (direction, pan, callback) {
-            
+
             if (this.get("moving")) {
                 return false;
             }
-            
-            this.set("moving", true);
 
-            // We use this function to make sure we are always
-            // moving in the correct direction
-            var audit = move.__audit = Date.now();
+            this.set("moving", true);
 
             callback = callback || function(){};
             
             // At the very least, get the character facing in the intended direction
             this.setFace(direction);
 
-            var grid  = this.grid,
-                self  = this,
+            var grid   = this.grid,
+                self   = this,
                 
-                size  = grid.get('size'),
-                speed = this.get("movement_speed"),
-                pos   = this.get("position"),
+                size   = grid.get('size'),
+                speed  = this.get("movement_speed"),
+                pos    = this.get("position"),
                 
-                delta = findPoint({ x: 0, y: 0 }, 1, -direction),
-                goal  = findPoint(pos, size, -direction);
+                delta  = findPoint({ x: 0, y: 0 }, 1, -direction),
+
+                limitX = delta.x > 0 ? Math.min : Math.max,
+                limitY = delta.y > 0 ? Math.min : Math.max,
+
+                goal   = findPoint(pos, size, -direction);
 
             this.set("animation", "walk");
             
@@ -472,20 +517,20 @@
             if (this.detectHit(delta.x * size, delta.y * size) ) {
                 return this.halt(true);
             }
-            
+
             function animate() {
                 
                 var shift = round(grid.shift);
 
-                pos.x += delta.x * shift * speed;
-                pos.y += delta.y * shift * speed;
-
+                pos.x = limitX(goal.x, pos.x + delta.x * shift * speed);
+                pos.y = limitY(goal.y, pos.y + delta.y * shift * speed);
+            
                 // Do we pan the screen with this character?
                 if (pan) {
                     grid.panTo(self.tile());
                 }
 
-                if ( pos.x === goal.x && pos.y === goal.y || audit !== move.__audit) {
+                if ( pos.x === goal.x && pos.y === goal.y ) {
                     self.halt(true);
                     return callback.apply(self, [Date.now()]);
                 }
@@ -616,4 +661,21 @@
         }
     });
 
+
+
+    // Spell casting
+    // -------------------------------------------------- //
+
+    Unit.methods({
+        
+        addSpell: function(name, fn) {
+            var spells = this.get("spells");
+            spells[name] = fn;
+        },
+        
+        removeSpell: function(name) {
+            delete this.get("spells")[name];
+        }
+
+    });
 }(window.Tilekit));
