@@ -12,9 +12,11 @@
         debug: false,
         
         defaults: {
-            font: "bold 18pt Helvetica",
-            character_sprite: "character.png",
-            emote_sprite: "emote.png"
+            font             : "bold 18pt Helvetica",
+            character_sprite : "character.png",
+            emote_sprite     : "emote.png",
+
+            explosion_sprite : "explosion.png"
         },
 
         each:  function(obj, iterator, context) {

@@ -9,6 +9,7 @@
 
     TK.defaults.character_sprite = "images/character.png";
     TK.defaults.emote_sprite     = "images/emote.png";
+    TK.defaults.explosion_sprite = "images/explosion.png";
 
     var scene = window.scene = new TK.Scene({
 

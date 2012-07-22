@@ -5,7 +5,7 @@
         var center = grid.findCenter(),
             size   = grid.get('size');
 
-        var sprite = new TK.Sprite("images/explosion.png", {
+        var sprite = new TK.Sprite(TK.defaults.explosion_sprite, {
             frames: 14,
             duration: 700,
             width: size * 2,
