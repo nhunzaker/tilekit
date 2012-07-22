@@ -45,7 +45,8 @@ module.exports = function(grunt) {
                 'src/scene.js',
                 'src/battle.js',
 
-                'src/explosion.js'
+                'src/explosion.js',
+                'src/smoke.js'
 
             ]
         },

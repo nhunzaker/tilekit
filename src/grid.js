@@ -109,15 +109,18 @@
             });
 
             function mouseEmit(e) {
-                
+
                 var size   = self.get("size"),
                     center = self.findCenter();
-                
-                e.tile = self.getTileAt({ x: e.offsetX, y: e.offsetY });
 
                 e.position = {
-                    x: (e.offsetX * size) + center.x,
-                    y: (e.offsetY * size) + center.y
+                    x: e.clientX - center.x - size / 2,
+                    y: e.clientY - center.y - size / 2
+                };
+                
+                e.tile = {
+                    x: roundTo(e.position.x / size, 1),
+                    y: roundTo(e.position.y / size, 1)
                 };
 
                 self.set("mouse", e);

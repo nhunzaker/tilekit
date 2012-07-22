@@ -192,7 +192,7 @@
                         
                         var now = (date.getTime() - birth) / 1000;
                         
-                        Tilekit.Rectangle(ctx, pos.x, pos.y, size, size, { 
+                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
                             fill: "red",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -208,7 +208,7 @@
 
                         var now = (date.getTime() - birth) / 1000;
 
-                        Tilekit.Rectangle(ctx, pos.x, pos.y, size, size, { 
+                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
                             fill: "aquamarine",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -286,8 +286,7 @@
                     offset: {
                         x: size * 2,
                         y: size * 2
-                    },
-                    shift: size * 2
+                    }
                 },
 
                 attack: {
@@ -297,7 +296,6 @@
                         x: 194,
                         y: size * 2
                     },
-                    shift: size * 2,
                     iterations: 1
                 },
 
@@ -308,7 +306,6 @@
                         x: 450,
                         y: size * 2
                     },
-                    shift: size * 2,
                     iterations: 1
                 }
 
@@ -342,7 +339,7 @@
         },
 
         setFace: function(direction) {
-
+            
             var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
                 size = this.grid.get('size');
 
@@ -575,7 +572,7 @@
             path = this.set(
                 "path", this.grid.plotCourse(tile, destination, this.scene.units)
             );
-            
+
             function traceSteps() {
                 if ( path.length && audit === fn.__audit) {
                     self.move(path.shift(), options.pan, traceSteps);

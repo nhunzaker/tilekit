@@ -1748,15 +1748,18 @@ TextBox.prototype.draw = function() {
             });
 
             function mouseEmit(e) {
-                
+
                 var size   = self.get("size"),
                     center = self.findCenter();
-                
-                e.tile = self.getTileAt({ x: e.offsetX, y: e.offsetY });
 
                 e.position = {
-                    x: (e.offsetX * size) + center.x,
-                    y: (e.offsetY * size) + center.y
+                    x: e.clientX - center.x - size / 2,
+                    y: e.clientY - center.y - size / 2
+                };
+                
+                e.tile = {
+                    x: roundTo(e.position.x / size, 1),
+                    y: roundTo(e.position.y / size, 1)
                 };
 
                 self.set("mouse", e);
@@ -2473,7 +2476,7 @@ TextBox.prototype.draw = function() {
                         
                         var now = (date.getTime() - birth) / 1000;
                         
-                        Tilekit.Rectangle(ctx, pos.x, pos.y, size, size, { 
+                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
                             fill: "red",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -2489,7 +2492,7 @@ TextBox.prototype.draw = function() {
 
                         var now = (date.getTime() - birth) / 1000;
 
-                        Tilekit.Rectangle(ctx, pos.x, pos.y, size, size, { 
+                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
                             fill: "aquamarine",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -2567,8 +2570,7 @@ TextBox.prototype.draw = function() {
                     offset: {
                         x: size * 2,
                         y: size * 2
-                    },
-                    shift: size * 2
+                    }
                 },
 
                 attack: {
@@ -2578,7 +2580,6 @@ TextBox.prototype.draw = function() {
                         x: 194,
                         y: size * 2
                     },
-                    shift: size * 2,
                     iterations: 1
                 },
 
@@ -2589,7 +2590,6 @@ TextBox.prototype.draw = function() {
                         x: 450,
                         y: size * 2
                     },
-                    shift: size * 2,
                     iterations: 1
                 }
 
@@ -2623,7 +2623,7 @@ TextBox.prototype.draw = function() {
         },
 
         setFace: function(direction) {
-
+            
             var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
                 size = this.grid.get('size');
 
@@ -2856,7 +2856,7 @@ TextBox.prototype.draw = function() {
             path = this.set(
                 "path", this.grid.plotCourse(tile, destination, this.scene.units)
             );
-            
+
             function traceSteps() {
                 if ( path.length && audit === fn.__audit) {
                     self.move(path.shift(), options.pan, traceSteps);
@@ -3356,7 +3356,7 @@ TextBox.prototype.draw = function() {
             size   = grid.get('size');
 
         var sprite = new TK.Sprite("images/explosion.png", {
-            frames: 12,
+            frames: 14,
             duration: 700,
             width: size * 2,
             height: size * 2,
@@ -3378,7 +3378,45 @@ TextBox.prototype.draw = function() {
                 sprite.animate();
                 sprite.draw(ctx);
 
-            }, sprite, 1000);
+            }, sprite, sprite.duration);
+            
+        });
+
+    };
+    
+
+}(window.Tilekit));
+(function(TK) {
+
+    TK.Smoke = function(grid, location) {
+
+        var center = grid.findCenter(),
+            size   = grid.get('size');
+
+        var sprite = new TK.Sprite("images/smoke.png", {
+            frames: 9,
+            duration: 500,
+            width: size * 2,
+            height: size * 2,
+            padding: size / 2,
+            position: {
+                x: location.x + center.x,
+                y: location.y + center.y
+            }
+        });
+
+        sprite.on("ready", function() {
+
+            grid.addLayer("smoke-" + Date.now(), function(ctx) {
+
+                var center = grid.findCenter();
+
+                sprite.setPosition(location.x + center.x, location.y + center.y);
+
+                sprite.animate();
+                sprite.draw(ctx);
+
+            }, sprite, sprite.duration);
             
         });
 

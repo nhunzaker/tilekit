@@ -6,7 +6,7 @@
             size   = grid.get('size');
 
         var sprite = new TK.Sprite("images/explosion.png", {
-            frames: 12,
+            frames: 14,
             duration: 700,
             width: size * 2,
             height: size * 2,
@@ -28,7 +28,7 @@
                 sprite.animate();
                 sprite.draw(ctx);
 
-            }, sprite, 1000);
+            }, sprite, sprite.duration);
             
         });
 

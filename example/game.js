@@ -20,7 +20,11 @@
             portals : map.portals
         })
     });
-
+    
+    TK.each(map.units, function(unit) {
+        unit.image = "images/moblin.png";
+    });
+    
     scene.add(map.units);
 
     var battle = new TK.Battle(scene);
@@ -71,14 +75,14 @@
         "intelligence": 40
     });
 
-    jim.on('death', function() {
-        TK.Explosion( jim.get("position") );
-    });
-
     TK.on("death", function(character) {
         TK.Explosion(scene.grid, character.get("position") );
     });
-    
+
+    scene.grid.on("mousedown", function(e) {
+        TK.Explosion(scene.grid, e.position);
+    });
+
     // Events
     // -------------------------------------------------- //
 
