@@ -3,75 +3,86 @@
 
 (function(Tilekit) {
 
-    var Sprite = function(src, options) {
-        
-        Tilekit.extend(this, {
-            width: 0,
-            height: 0,
+    var Sprite = Tilekit.Entity.extend({
 
-            offset: {
-                x : 0,
-                y: 0
-            },
-            base_offset: {
-                x: 0,
-                y: 0
-            },
+        initialize: function(src, options) {
             
-            padding: 0,
-            position: {
-                x: 0,
-                y: 0
-            },
-            base_position: {
-                x: 0,
-                y: 0
-            },
+            Tilekit.extend(this, {
+                width: 0,
+                height: 0,
 
-            frames: 1, 
-            currentFrame: 0,
-            iterations: 0,
+                offset: {
+                    x : 0,
+                    y: 0
+                },
+                base_offset: {
+                    x: 0,
+                    y: 0
+                },
+                
+                padding: 0,
+                position: {
+                    x: 0,
+                    y: 0
+                },
+                base_position: {
+                    x: 0,
+                    y: 0
+                },
 
-            duration: 1,
-            spritesheet: null,
-            shadow: null,
-            shown: true,
-            zoomLevel: 1,
-            target: null,
-            timer: new Tilekit.Timer()
+                frames: 1, 
+                currentFrame: 0,
+                iterations: 0,
+
+                duration: 1,
+                spritesheet: null,
+                shadow: null,
+                shown: true,
+                zoomLevel: 1,
+                target: null,
+                timer: new Tilekit.Timer()
+                
+            }, options);            
             
-        }, options);            
-        
-        this.shift = this.width;
+            this.shift = this.width;
+            this.setSpritesheet(src);
+            this.created_at = this.timer.getMilliseconds();
 
-        this.setSpritesheet(src);
-        this.created_at = this.timer.getMilliseconds();
+            var d = new Date();
 
-        var d = new Date();
-
-        if (this.duration > 0 && this.frames > 0) {
-            this.ftime = d.getTime() + (this.duration / this.frames);
-        } else {
-            this.ftime = 0;
+            if (this.duration > 0 && this.frames > 0) {
+                this.ftime = d.getTime() + (this.duration / this.frames);
+            } else {
+                this.ftime = 0;
+            }
         }
 
-    };
+    });
 
     Sprite.prototype.setSpritesheet = function(src) {
+        
+        var self = this;
         
         // Don't duplicate work, adding needless http requests for
         // the same image
 
         if (this.spritesheet instanceof Image && this.spritesheet.src === src) {
+            self.emit("ready");
             return this;
         }
-        
+
+        this.ready = false;
+
         if (src instanceof Image) {
             this.spritesheet = src;
         } else {
             this.spritesheet = new Image();
             this.spritesheet.src = src;
         }
+
+        this.spritesheet.onload = function() {
+            self.emit("ready");
+        };
 
         return this;
     };
@@ -125,6 +136,7 @@
             if (this.currentFrame === (this.frames - 1)) {
                 this.currentFrame = 0;
                 this.iterations++;
+                this.emit("iteration");
             } else {
                 this.currentFrame++;
             }
@@ -150,51 +162,51 @@
     
     Sprite.prototype.drawShadow = function(c, degrees) {
 
-            if (this.shadow === null) { // Shadow not created yet
+        if (this.shadow === null) { // Shadow not created yet
 
-                var sCnv = document.createElement("canvas");
-                var sCtx = sCnv.getContext("2d");
+            var sCnv = document.createElement("canvas");
+            var sCtx = sCnv.getContext("2d");
 
-                sCnv.width = this.width;
-                sCnv.height = this.height;
+            sCnv.width = this.width;
+            sCnv.height = this.height;
 
-                sCtx.drawImage(this.spritesheet,
-                               this.offset.x,
-                               this.offset.y,
-                               this.width,
-                               this.height,
-                               0,
-                               0,
-                               this.width * this.zoomLevel,
-                               this.height * this.zoomLevel);
+            sCtx.drawImage(this.spritesheet,
+                           this.offset.x,
+                           this.offset.y,
+                           this.width,
+                           this.height,
+                           0,
+                           0,
+                           this.width * this.zoomLevel,
+                           this.height * this.zoomLevel);
 
-                var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
+            var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
 
-                for (var i = 0, len = idata.data.length; i < len; i += 4) {
-                    idata.data[i] = 0; // R
-                    idata.data[i + 1] = 0; // G
-                    idata.data[i + 2] = 0; // B
-                }
-
-                sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
-                sCtx.putImageData(idata, 0, 0);
-
-                this.shadow = sCtx;
+            for (var i = 0, len = idata.data.length; i < len; i += 4) {
+                idata.data[i] = 0; // R
+                idata.data[i + 1] = 0; // G
+                idata.data[i + 2] = 0; // B
             }
 
-            c.save();
-            c.globalAlpha = 0.1;
+            sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
+            sCtx.putImageData(idata, 0, 0);
 
-            var sw = this.width * this.zoomLevel;
-            var sh = this.height * this.zoomLevel;
+            this.shadow = sCtx;
+        }
 
-            c.drawImage(this.shadow.canvas, this.pos.x, this.pos.y - sh, sw, sh * 2);
-            c.restore();
+        c.save();
+        c.globalAlpha = 0.1;
+
+        var sw = this.width * this.zoomLevel;
+        var sh = this.height * this.zoomLevel;
+
+        c.drawImage(this.shadow.canvas, this.pos.x, this.pos.y - sh, sw, sh * 2);
+        c.restore();
 
     };
     
     Sprite.prototype.draw = function(c, drawShadow, degrees) {
-
+        
         c = c || this.target;
 
         if (!this.shown) {

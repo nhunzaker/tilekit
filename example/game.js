@@ -26,7 +26,6 @@
     var battle = new TK.Battle(scene);
 
     var nate = scene.add({
-        image: "images/warrior.png",
         name: "Nate",
         tile: {
             x: map.start_x, 
@@ -70,6 +69,14 @@
     jim.set({
         "strength" : 10,
         "intelligence": 40
+    });
+
+    jim.on('death', function() {
+        TK.Explosion( jim.get("position") );
+    });
+
+    TK.on("death", function(character) {
+        TK.Explosion(scene.grid, character.get("position") );
     });
     
     // Events

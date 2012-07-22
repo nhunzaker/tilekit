@@ -326,21 +326,19 @@
                 layer, segment, 
                 height, row, depth;
 
-            this.tileSprite = new Sprite(tileset, {
+            var sprite = this.tileSprite = new Sprite(tileset, {
                 width: size,
                 height: size, 
                 target: this.stagingCtx
             });
 
             // Finally, we need some calculations to help the tileengine paint the map
-            var sampleTileSet = new window.Image();
-            sampleTileSet.src = tileset;
 
             // For interpretation, we need to know how deep the tileset runs
             // before moving to the next line
-            sampleTileSet.onload = function() {
-
-                self.tilesetDepth = sampleTileSet.width / size;
+            sprite.once("ready", function() {
+                
+                self.tilesetDepth = sprite.spritesheet.width / size;
                 self.tilemap = [];
                 
                 var map	= data.trim().split("."),
@@ -400,7 +398,7 @@
 
                 self.emit("ready");
 
-            };
+            });
 
         }
 

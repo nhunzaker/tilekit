@@ -322,6 +322,7 @@
     // -------------------------------------------------- //
 
     Unit.methods({
+
         getTileFront: function(offset) {
             return findPoint(this.tile(), offset || 1, -this.get("face"));
         },
@@ -421,8 +422,9 @@
             var pos = this.get("position"),
                 size = this.grid.get("size");
 
+            Tilekit.emit("death", this);
+            this.emit("death");
             this.scene.remove(this);
-
         }
 
     });

@@ -35,15 +35,18 @@ module.exports = function(grunt) {
                 'src/textbox.js',
                 'src/primitives.js',
                 'src/timer.js',
-                'src/sprite.js',
                 'src/entity.js',
+                'src/sprite.js',
                 'src/tile.js',
                 'src/grid.js',
                 'src/unit.js',
                 'src/character.js',
                 'src/projectile.js',
                 'src/scene.js',
-                'src/battle.js'
+                'src/battle.js',
+
+                'src/explosion.js'
+
             ]
         },
 
