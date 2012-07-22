@@ -8,6 +8,7 @@
         initialize: function(src, options) {
             
             Tilekit.extend(this, {
+
                 width: 0,
                 height: 0,
 
@@ -15,12 +16,14 @@
                     x : 0,
                     y: 0
                 },
+
                 base_offset: {
                     x: 0,
                     y: 0
                 },
                 
                 padding: 0,
+
                 position: {
                     x: 0,
                     y: 0
@@ -29,10 +32,11 @@
                     x: 0,
                     y: 0
                 },
-
+                
                 frames: 1, 
                 currentFrame: 0,
                 iterations: 0,
+                keyframe: 1,
 
                 duration: 1,
                 spritesheet: null,
@@ -140,6 +144,10 @@
                 this.currentFrame++;
             }
 
+            if (this.currentFrame === this.keyframe) {
+                this.emit("keyframe");
+            }
+
         }
 
         return this;
@@ -153,7 +161,7 @@
         t.update();
 
         if (t.getMilliseconds() > this.ftime) {
-            this.nextFrame ();
+            this.nextFrame();
         }
 
         return this;
@@ -168,14 +176,14 @@
         }
 
         ctx.drawImage(this.spritesheet,
-                    this.offset.x + this.base_offset.x,
-                    this.offset.y + this.base_offset.y,
-                    this.width,
-                    this.height,
-                    this.position.x - this.padding,
-                    this.position.y - this.padding,
-                    this.width * this.zoomLevel,
-                    this.height * this.zoomLevel);
+                      this.offset.x + this.base_offset.x,
+                      this.offset.y + this.base_offset.y,
+                      this.width,
+                      this.height,
+                      this.position.x - this.padding,
+                      this.position.y - this.padding,
+                      this.width * this.zoomLevel,
+                      this.height * this.zoomLevel);
 
         return this;
     };

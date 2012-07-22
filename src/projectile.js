@@ -23,6 +23,7 @@
         
         var scene  = settings.scene,
             grid   = settings.scene.grid,
+            size   = grid.get('size'),
             travel = 0,
             offset = grid.get("size") / 2,
             name   = "projectile" + Date.now(),
@@ -38,7 +39,7 @@
 
             TK.emit("damage", target, settings.source);
 
-            TK.Rectangle(ctx, target.x + center.x + offset, target.y + center.y, 5, 5, {
+            TK.Rectangle(ctx, target.x + center.x + offset, (size / 2) + target.y + center.y, 5, 5, {
                 fill: "#000"
             });
             

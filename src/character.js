@@ -82,24 +82,26 @@
 
             this.addLayer("renderName", function() {
 
-                    if (!this.showName) {
-                        return;
-                    }
+                if (!this.showName) {
+                    return;
+                }
 
-                    var c = this.ctx,
-                        name = this.get("name");
+                var c = this.ctx,
+                    name = this.get("name");
 
-                    c.font = "15px monospace";
-                    c.fillStyle = "#000";
+                c.font = "15px monospace";
+                c.fillStyle = "#000";
 
-                    var textWidth = this.ctx.measureText(name).width;
+                var textWidth = this.ctx.measureText(name).width;
 
-                    c.fillText(name,
-                               (this.tile.x * 32) - (textWidth / 10),
-                               (this.tile.y * 31)
-                              );
+                c.fillText(name,
+                           (this.tile.x * 32) - (textWidth / 10),
+                           (this.tile.y * 31)
+                          );
             }, this);
+
         }
+
     });
 
 }(window.Tilekit));

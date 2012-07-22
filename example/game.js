@@ -31,6 +31,7 @@
     var battle = new TK.Battle(scene);
 
     var nate = scene.add({
+        image: "images/link.png",
         name: "Nate",
         tile: {
             x: map.start_x, 

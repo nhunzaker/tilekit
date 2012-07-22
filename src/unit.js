@@ -147,6 +147,7 @@
                 var animation = self.animations[next];
 
                 if (animation) {
+                    self.sprite.keyframe = animation.keyframe || 1;
                     self.sprite.iterations = 0;
                     self.sprite.base_offset.x = animation.offset.x || 0;
                     self.sprite.base_offset.y = animation.offset.y || 0;
@@ -289,21 +290,31 @@
                     }
                 },
 
-                attack: {
-                    frames: 4,
-                    duration: 250,
+                melee: {
+                    frames: 9,
+                    keyframe: 3,
+                    duration: 350,
                     offset: {
-                        y: size * 12
+                        y: size * 13
+                    },
+                    iterations: 1
+                },
+
+                range: {
+                    frames: 7,
+                    keyframe: 6,
+                    duration: 500,
+                    offset: {
+                        y: size * 26
                     },
                     iterations: 1
                 },
 
                 spell: {
-                    frames: 3,
+                    frames: 11,
                     duration: 400,
                     offset: {
-                        x: 450,
-                        y: size * 2
+                        y: size * 39
                     },
                     iterations: 1
                 }
@@ -374,42 +385,108 @@
     // -------------------------------------------------- //
 
     Unit.methods({
+        
+        registerAction: function(name, fn) {
 
+            var self = this;
+
+            this.actions[name] = function() {
+                
+                if (self.acting) {
+                    return false;
+                }
+                
+                self.acting = true;
+                
+                fn.apply(self, self.ctx, Date.now());
+                
+                self.sprite.once("iteration", function() {
+                    self.acting = false;
+                });
+                
+                return self;
+            };
+
+        },
+        
         attack: function() {
+            
+            if (this.acting) {
+                return false;
+            }
+            
+            this.acting = true;
+            
+            var self = this;
+
             this.halt();
-            this.set("animation", "attack");
-            Tilekit.emit("damage", this.getPositionFront(), this);
+            this.set("animation", "melee");
+
+            this.sprite.once("keyframe", function() {
+                Tilekit.emit("damage", self.getPositionFront(), self);
+            });
+            
+            this.sprite.once("iteration", function() {
+                self.acting = false;
+            });
         },
 
         shoot: function() {
 
+            if (this.acting) {
+                return false;
+            }
+
+            this.acting = true;
+
             var size = this.grid.get("size"),
-                range = Math.roundTo(this.get("vision") / size, size);
+                range = Math.roundTo(this.get("vision") / size, size),
+                self = this;
 
             this.halt();
 
-            this.set("animation", "attack");
+            this.set("animation", "range");
+            
+            this.sprite.once("keyframe", function() {
 
-            Tilekit.Projectile({
+                Tilekit.Projectile({
 
-                source: this,
+                    source: self,
 
-                from: this.get("position"),
+                    from: self.get("position"),
 
-                distance: this.get("vision") * 2,
-                angle: this.get("face"),
-                scene: this.scene
+                    distance: self.get("vision") * 2,
+                    angle: self.get("face"),
+                    scene: self.scene
+                });
+
+            });
+
+            this.sprite.once("iteration", function() {
+                self.acting = false;
             });
 
         },
 
         castSpell: function(name, target) {
+            
+            var self = this;
+
+            if (this.acting) {
+                return false;
+            }
+
+            this.acting = true;
 
             this.halt();
 
             this.set("animation", "spell");
             this.get("spells")[name].apply(this, target, Date.now());
             this.emit("spell", this.get("position"));
+
+            this.sprite.once("iteration", function() {
+                self.acting = false;
+            });
 
         },
 
@@ -522,7 +599,7 @@
 
                 pos.x = limitX(goal.x, pos.x + delta.x * shift * speed);
                 pos.y = limitY(goal.y, pos.y + delta.y * shift * speed);
-            
+                
                 // Do we pan the screen with this character?
                 if (pan) {
                     grid.panTo(self.tile());
