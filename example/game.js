@@ -74,7 +74,7 @@
         "strength" : 10,
         "intelligence": 40
     });
-
+    
     TK.on("death", function(character) {
         TK.Explosion(scene.grid, character.get("position") );
     });
@@ -87,7 +87,7 @@
     // -------------------------------------------------- //
 
     scene.grid.on("mousedown", function(e) {
-        nate.setPath(e.tile, { pan: true });
+       nate.setPath(e.tile, { pan: true });
     });
 
     scene.grid.on("mousewheel", function(e) {

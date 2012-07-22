@@ -114,8 +114,8 @@
                     center = self.findCenter();
 
                 e.position = {
-                    x: e.clientX - center.x - size / 2,
-                    y: e.clientY - center.y - size / 2
+                    x: ( (e.clientX / self.scale) - center.x - size / 2),
+                    y: ( (e.clientY / self.scale) - center.y - size / 2)
                 };
                 
                 e.tile = {
