@@ -44,7 +44,6 @@
                 
             }, options);            
             
-            this.shift = this.width;
             this.setSpritesheet(src);
             this.created_at = this.timer.getMilliseconds();
 
@@ -58,7 +57,7 @@
         }
 
     });
-
+    
     Sprite.prototype.setSpritesheet = function(src) {
         
         var self = this;
@@ -131,7 +130,7 @@
                 this.ftime = 0;
             }
 
-            this.offset.x = this.base_offset.x + (this.shift * this.currentFrame);
+            this.offset.x = this.width * this.currentFrame;
 
             if (this.currentFrame === (this.frames - 1)) {
                 this.currentFrame = 0;
@@ -160,66 +159,17 @@
         return this;
     };
     
-    Sprite.prototype.drawShadow = function(c, degrees) {
-
-        if (this.shadow === null) { // Shadow not created yet
-
-            var sCnv = document.createElement("canvas");
-            var sCtx = sCnv.getContext("2d");
-
-            sCnv.width = this.width;
-            sCnv.height = this.height;
-
-            sCtx.drawImage(this.spritesheet,
-                           this.offset.x,
-                           this.offset.y,
-                           this.width,
-                           this.height,
-                           0,
-                           0,
-                           this.width * this.zoomLevel,
-                           this.height * this.zoomLevel);
-
-            var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
-
-            for (var i = 0, len = idata.data.length; i < len; i += 4) {
-                idata.data[i] = 0; // R
-                idata.data[i + 1] = 0; // G
-                idata.data[i + 2] = 0; // B
-            }
-
-            sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
-            sCtx.putImageData(idata, 0, 0);
-
-            this.shadow = sCtx;
-        }
-
-        c.save();
-        c.globalAlpha = 0.1;
-
-        var sw = this.width * this.zoomLevel;
-        var sh = this.height * this.zoomLevel;
-
-        c.drawImage(this.shadow.canvas, this.pos.x, this.pos.y - sh, sw, sh * 2);
-        c.restore();
-
-    };
-    
-    Sprite.prototype.draw = function(c, drawShadow, degrees) {
+    Sprite.prototype.draw = function(ctx) {
         
-        c = c || this.target;
+        ctx = ctx || this.target;
 
         if (!this.shown) {
             return false; 
         }
-        
-        if (drawShadow) {
-            this.drawShadow(c, drawShadow, degrees);
-        }       
 
-        c.drawImage(this.spritesheet,
-                    this.offset.x,
-                    this.offset.y,
+        ctx.drawImage(this.spritesheet,
+                    this.offset.x + this.base_offset.x,
+                    this.offset.y + this.base_offset.y,
                     this.width,
                     this.height,
                     this.position.x - this.padding,

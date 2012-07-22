@@ -782,9 +782,11 @@
         debug: false,
         
         defaults: {
-            font: "bold 18pt Helvetica",
-            character_sprite: "character.png",
-            emote_sprite: "emote.png"
+            font             : "bold 18pt Helvetica",
+            character_sprite : "character.png",
+            emote_sprite     : "emote.png",
+
+            explosion_sprite : "explosion.png"
         },
 
         each:  function(obj, iterator, context) {
@@ -824,7 +826,15 @@
                 }
             });
             return obj;
+        },
+
+       generateGUID: function guidGenerator() {
+            var S4 = function() {
+                return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
+            };
+            return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
         }
+
 
     };
     
@@ -1146,9 +1156,11 @@ TextBox.prototype.draw = function() {
         
         ctx.globalAlpha = options.alpha || 1;
         ctx.globalCompositeOperation = options.composite;
-
-        ctx.fillStyle = options.fill;
-        ctx.fillRect(x, y, width, height);
+        
+        if (options.fill) {
+            ctx.fillStyle = options.fill;
+            ctx.fillRect(x, y, width, height);
+        }
         
         if (options.stroke) {
             ctx.lineWidth = options.lineWidth || 1;
@@ -1260,6 +1272,13 @@ TextBox.prototype.draw = function() {
         addLayer: function(namespace, layer, scope, duration) {
 
             var self = this;
+
+            if (typeof namespace === 'function') {
+                layer = namespace;
+                scope = layer;
+                duration = scope;
+                namespace = TK.generateGUID();
+            }
 
             if (!namespace) {
                 throw new Error("Entity#addLayer - Layer requires a namespace");
@@ -1378,7 +1397,6 @@ TextBox.prototype.draw = function() {
                 
             }, options);            
             
-            this.shift = this.width;
             this.setSpritesheet(src);
             this.created_at = this.timer.getMilliseconds();
 
@@ -1392,7 +1410,7 @@ TextBox.prototype.draw = function() {
         }
 
     });
-
+    
     Sprite.prototype.setSpritesheet = function(src) {
         
         var self = this;
@@ -1465,7 +1483,7 @@ TextBox.prototype.draw = function() {
                 this.ftime = 0;
             }
 
-            this.offset.x = this.base_offset.x + (this.shift * this.currentFrame);
+            this.offset.x = this.width * this.currentFrame;
 
             if (this.currentFrame === (this.frames - 1)) {
                 this.currentFrame = 0;
@@ -1494,66 +1512,17 @@ TextBox.prototype.draw = function() {
         return this;
     };
     
-    Sprite.prototype.drawShadow = function(c, degrees) {
-
-        if (this.shadow === null) { // Shadow not created yet
-
-            var sCnv = document.createElement("canvas");
-            var sCtx = sCnv.getContext("2d");
-
-            sCnv.width = this.width;
-            sCnv.height = this.height;
-
-            sCtx.drawImage(this.spritesheet,
-                           this.offset.x,
-                           this.offset.y,
-                           this.width,
-                           this.height,
-                           0,
-                           0,
-                           this.width * this.zoomLevel,
-                           this.height * this.zoomLevel);
-
-            var idata = sCtx.getImageData(0, 0, sCnv.width, sCnv.height);
-
-            for (var i = 0, len = idata.data.length; i < len; i += 4) {
-                idata.data[i] = 0; // R
-                idata.data[i + 1] = 0; // G
-                idata.data[i + 2] = 0; // B
-            }
-
-            sCtx.clearRect(0, 0, sCnv.width, sCnv.height);
-            sCtx.putImageData(idata, 0, 0);
-
-            this.shadow = sCtx;
-        }
-
-        c.save();
-        c.globalAlpha = 0.1;
-
-        var sw = this.width * this.zoomLevel;
-        var sh = this.height * this.zoomLevel;
-
-        c.drawImage(this.shadow.canvas, this.pos.x, this.pos.y - sh, sw, sh * 2);
-        c.restore();
-
-    };
-    
-    Sprite.prototype.draw = function(c, drawShadow, degrees) {
+    Sprite.prototype.draw = function(ctx) {
         
-        c = c || this.target;
+        ctx = ctx || this.target;
 
         if (!this.shown) {
             return false; 
         }
-        
-        if (drawShadow) {
-            this.drawShadow(c, drawShadow, degrees);
-        }       
 
-        c.drawImage(this.spritesheet,
-                    this.offset.x,
-                    this.offset.y,
+        ctx.drawImage(this.spritesheet,
+                    this.offset.x + this.base_offset.x,
+                    this.offset.y + this.base_offset.y,
                     this.width,
                     this.height,
                     this.position.x - this.padding,
@@ -2406,10 +2375,10 @@ TextBox.prototype.draw = function() {
             }
 
             this.sprite = new Sprite(options.image, {
-                width: size * 2,
-                height: size * 2,
+                width: size * 3,
+                height: size * 3,
                 target: this.ctx,
-                padding: size / 2
+                padding: size
             });
 
             if (grid) {
@@ -2434,7 +2403,6 @@ TextBox.prototype.draw = function() {
                     self.sprite.iterations = 0;
                     self.sprite.base_offset.x = animation.offset.x || 0;
                     self.sprite.base_offset.y = animation.offset.y || 0;
-                    self.sprite.shift = animation.shift || self.sprite.width;
                     self.sprite.setFrames(animation.frames || 1);
                     self.sprite.setDuration(animation.duration || 1);
                 }
@@ -2448,7 +2416,8 @@ TextBox.prototype.draw = function() {
                     min   = Math.min,
                     max   = Math.max,
                     ratio = min(1, max(0.01, next / this.get("maxHealth")) ),
-                    delta = next - prev;
+                    delta = next - prev,
+                    sprite = this.sprite;
                 
                 if (next <= 0) {
                     this.death();
@@ -2476,7 +2445,7 @@ TextBox.prototype.draw = function() {
                         
                         var now = (date.getTime() - birth) / 1000;
                         
-                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
+                        Tilekit.Rectangle(ctx, sprite.position.x, sprite.position.y, sprite.width, sprite.height, { 
                             fill: "red",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -2492,7 +2461,7 @@ TextBox.prototype.draw = function() {
 
                         var now = (date.getTime() - birth) / 1000;
 
-                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
+                        Tilekit.Rectangle(ctx, sprite.position.x, sprite.position.y, sprite.width, sprite.height, { 
                             fill: "aquamarine",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -2565,20 +2534,19 @@ TextBox.prototype.draw = function() {
                 },
 
                 walk: {
-                    frames: 2,
+                    frames: 3,
                     duration: 220,
                     offset: {
-                        x: size * 2,
-                        y: size * 2
+                        x: 0,
+                        y: 0
                     }
                 },
 
                 attack: {
-                    frames: 3,
-                    duration: 200,
+                    frames: 4,
+                    duration: 250,
                     offset: {
-                        x: 194,
-                        y: size * 2
+                        y: size * 12
                     },
                     iterations: 1
                 },
@@ -2629,10 +2597,10 @@ TextBox.prototype.draw = function() {
 
             // What direction are we dealing with?
             switch(direction) {
-            case 90  : this.sprite.setOffset(undefined, size * 4); break;
+            case 90  : this.sprite.setOffset(undefined, size * 6); break;
             case 270 : this.sprite.setOffset(undefined, 0); break;
-            case 0   : this.sprite.setOffset(undefined, size * 6); break;
-            case 180 : this.sprite.setOffset(undefined, size * 2); break;
+            case 0   : this.sprite.setOffset(undefined, size * 9); break;
+            case 180 : this.sprite.setOffset(undefined, size * 3); break;
             }
 
             this.set("face", face);
@@ -3355,7 +3323,7 @@ TextBox.prototype.draw = function() {
         var center = grid.findCenter(),
             size   = grid.get('size');
 
-        var sprite = new TK.Sprite("images/explosion.png", {
+        var sprite = new TK.Sprite(TK.defaults.explosion_sprite, {
             frames: 14,
             duration: 700,
             width: size * 2,

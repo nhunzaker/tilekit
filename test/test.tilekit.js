@@ -27,4 +27,8 @@ describe("Tilekit", function() {
         Tilekit.extend({}, b, a).lawl.should.equal("baz");
     });
 
+    it("should be able to produce unique identifiers", function() {
+        Tilekit.generateGUID().should.be.defined;
+    });
+
 });

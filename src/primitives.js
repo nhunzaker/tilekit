@@ -25,9 +25,11 @@
         
         ctx.globalAlpha = options.alpha || 1;
         ctx.globalCompositeOperation = options.composite;
-
-        ctx.fillStyle = options.fill;
-        ctx.fillRect(x, y, width, height);
+        
+        if (options.fill) {
+            ctx.fillStyle = options.fill;
+            ctx.fillRect(x, y, width, height);
+        }
         
         if (options.stroke) {
             ctx.lineWidth = options.lineWidth || 1;

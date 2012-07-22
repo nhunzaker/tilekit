@@ -63,6 +63,13 @@
 
             var self = this;
 
+            if (typeof namespace === 'function') {
+                layer = namespace;
+                scope = layer;
+                duration = scope;
+                namespace = TK.generateGUID();
+            }
+
             if (!namespace) {
                 throw new Error("Entity#addLayer - Layer requires a namespace");
             }

@@ -122,10 +122,10 @@
             }
 
             this.sprite = new Sprite(options.image, {
-                width: size * 2,
-                height: size * 2,
+                width: size * 3,
+                height: size * 3,
                 target: this.ctx,
-                padding: size / 2
+                padding: size
             });
 
             if (grid) {
@@ -150,7 +150,6 @@
                     self.sprite.iterations = 0;
                     self.sprite.base_offset.x = animation.offset.x || 0;
                     self.sprite.base_offset.y = animation.offset.y || 0;
-                    self.sprite.shift = animation.shift || self.sprite.width;
                     self.sprite.setFrames(animation.frames || 1);
                     self.sprite.setDuration(animation.duration || 1);
                 }
@@ -164,7 +163,8 @@
                     min   = Math.min,
                     max   = Math.max,
                     ratio = min(1, max(0.01, next / this.get("maxHealth")) ),
-                    delta = next - prev;
+                    delta = next - prev,
+                    sprite = this.sprite;
                 
                 if (next <= 0) {
                     this.death();
@@ -192,7 +192,7 @@
                         
                         var now = (date.getTime() - birth) / 1000;
                         
-                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
+                        Tilekit.Rectangle(ctx, sprite.position.x, sprite.position.y, sprite.width, sprite.height, { 
                             fill: "red",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -208,7 +208,7 @@
 
                         var now = (date.getTime() - birth) / 1000;
 
-                        Tilekit.Rectangle(ctx, pos.x-size/2, pos.y-size/2, size * 2, size * 2, { 
+                        Tilekit.Rectangle(ctx, sprite.position.x, sprite.position.y, sprite.width, sprite.height, { 
                             fill: "aquamarine",
                             alpha: min(0.6, 0.1 / now),
                             composite: "source-atop"
@@ -281,20 +281,19 @@
                 },
 
                 walk: {
-                    frames: 2,
+                    frames: 3,
                     duration: 220,
                     offset: {
-                        x: size * 2,
-                        y: size * 2
+                        x: 0,
+                        y: 0
                     }
                 },
 
                 attack: {
-                    frames: 3,
-                    duration: 200,
+                    frames: 4,
+                    duration: 250,
                     offset: {
-                        x: 194,
-                        y: size * 2
+                        y: size * 12
                     },
                     iterations: 1
                 },
@@ -345,10 +344,10 @@
 
             // What direction are we dealing with?
             switch(direction) {
-            case 90  : this.sprite.setOffset(undefined, size * 4); break;
+            case 90  : this.sprite.setOffset(undefined, size * 6); break;
             case 270 : this.sprite.setOffset(undefined, 0); break;
-            case 0   : this.sprite.setOffset(undefined, size * 6); break;
-            case 180 : this.sprite.setOffset(undefined, size * 2); break;
+            case 0   : this.sprite.setOffset(undefined, size * 9); break;
+            case 180 : this.sprite.setOffset(undefined, size * 3); break;
             }
 
             this.set("face", face);
