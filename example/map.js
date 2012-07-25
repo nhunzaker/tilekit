@@ -5,7 +5,7 @@ window.map = {
     "start_x":26,
     "start_y":10,
 
-    "tileset":"images/outside.png",
+    "tileset":"images/custom.png",
 
     "units": [
         {

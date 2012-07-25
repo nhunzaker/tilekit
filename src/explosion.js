@@ -1,6 +1,6 @@
 (function(TK) {
 
-    TK.Explosion = function(grid, location) {
+    TK.Explosion = function(grid, location, radius) {
 
         var center = grid.findCenter(),
             size   = grid.get('size');
@@ -19,16 +19,16 @@
 
         sprite.on("ready", function() {
 
-            grid.addLayer("explosion-" + Date.now(), function(ctx) {
+            grid.addLayer(function fn(ctx) {
 
                 var center = grid.findCenter();
 
                 sprite.setPosition(location.x + center.x, location.y + center.y);
-
+                
                 sprite.animate();
                 sprite.draw(ctx);
 
-            }, sprite, sprite.duration);
+            }, sprite, 700, sprite.duration);
             
         });
 

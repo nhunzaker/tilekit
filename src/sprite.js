@@ -28,6 +28,7 @@
                     x: 0,
                     y: 0
                 },
+                
                 base_position: {
                     x: 0,
                     y: 0
@@ -61,7 +62,7 @@
         }
 
     });
-    
+
     Sprite.prototype.setSpritesheet = function(src) {
         
         var self = this;

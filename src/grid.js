@@ -100,11 +100,9 @@
                     self.panTo(options.start_location);
                 }
 
-                window.onblur = function() {
-                    self.pause();
-                };
-
-                self.begin();
+                TK.on("refresh", function() {
+                    self.draw.apply(self);
+                });
 
             });
 
@@ -255,64 +253,6 @@
 
     });
 
-    // Game loop methods
-    // -------------------------------------------------- //
-
-    Grid.methods({
-
-        begin: function gameLoop() {
-            
-            if (this.attributes.paused) {
-                return false;
-            }
-
-            window.requestAnimationFrame(this.begin.bind(this));
-
-            gameLoop.then = gameLoop.then || this.created_at;
-            gameLoop.now = Date.now();
-
-            this.set("fps", 1000 / (gameLoop.now - gameLoop.then));
-            this.shift = 60 / (1000 / (gameLoop.now - gameLoop.then));
-
-            gameLoop.then = gameLoop.now;
-
-            return this.draw();
-
-        },
-
-        pause: function () {
-            
-            if (this.get("paused")) {
-                return;
-            }
-            
-            this.set("paused", true);
-
-            var ctx = this.ctx,
-                canvas = this.canvas;
-            
-            TK.Rectangle(ctx, 0, 0, window.innerWidth, window.innerWidth, { fill: "rgba(0,0,0,0.6)" });
-
-            TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2 + 1, { align: "center", color: "#000" });
-            TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2,     { align: 'center', color: "#fff" });
-
-        },
-
-        play: function () {
-            this.set("paused", false);
-            this.begin();
-        },
-
-        toggle: function() {
-            if ( this.get("paused") ){
-                this.play();
-            } else {
-                this.pause();
-            }
-        }
-
-    });
-
 
     // Calculations
     // -------------------------------------------------- //
@@ -412,7 +352,6 @@
 
     // Returns the tileX, tileY of the center of the map
     Grid.methods({
-
         findCenter: function() {
 
             var size   = this.get("size") / 2,
@@ -425,7 +364,6 @@
             };
 
         },
-
         getTileAt: function(position) {
 
             var size   = this.get('size'),
@@ -442,8 +380,6 @@
                 y: y
             };
         },
-
-        // Finds the offset (x, y) of a tile given it's slot value
         calculateTileOffset: function(slot) {
 
             // The slot of the tile
@@ -460,7 +396,6 @@
 
             return offset;
         }
-
     });
     
     
@@ -468,7 +403,6 @@
     // -------------------------------------------------- //
 
     Grid.methods({
-
         fillspace: function() {
 
             var size = this.get('size');
@@ -478,8 +412,6 @@
 
             return this;
         },
-
-        // Replace a specific tile
         replaceTile: function(x, y, layer, slot) {
 
             var size = this.get("size"),
@@ -502,15 +434,10 @@
             
             return this;
         },
-
-        // Wipes the board clean
-        // Mostly, this is used to take care of transparency rendering
-
         clear: function() {
             this.ctx.clearRect(0,0, this.canvas.width, this.canvas.height);
             this.stagingCtx.clearRect(0,0, this.staging.width, this.staging.height);
         },
-
         panTo: function(coords) {
 
             var size = this.get('size') / 2;
@@ -522,7 +449,6 @@
 
             return this;
         },
-
         drawTile: function drawTile(tile, layerOffset) {
 
             var size    = this.get('size'),
@@ -543,7 +469,6 @@
             }
 
         },
-
         draw: function() {
 
             var ctx	= this.ctx,
@@ -562,7 +487,6 @@
             // -------------------------------------------------- //
 
             ctx.scale(this.scale, this.scale);
-
             ctx.drawImage(this.staging, center.x, center.y);
             ctx.drawImage(this.overlay, center.x, center.y);
 
@@ -574,14 +498,12 @@
             return true;
 
         }
-
     });
 
     // Pathfinding
     // -------------------------------------------------- //
 
     Grid.methods({
-
         plotCourse: function(start, end, additional) {
 
             var original = {},
@@ -639,7 +561,6 @@
             return points;
 
         }
-
     });
 
 }(window, window.Tilekit));

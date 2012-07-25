@@ -16,7 +16,6 @@
         initialize: function(options, layers) {
             this.attributes = TK.extend({}, this.attributes, options);
             this.layers     = TK.extend({}, this.layers, layers);
-
             this.canvas     = document.createElement("canvas");
             this.ctx        = this.canvas.getContext('2d');
         },
@@ -64,17 +63,12 @@
             var self = this;
 
             if (typeof namespace === 'function') {
-                layer = namespace;
-                scope = layer;
-                duration = scope;
+                layer = arguments[0];
+                scope = arguments[1];
+                duration = arguments[2];
                 namespace = TK.generateGUID();
-            }
 
-            if (!namespace) {
-                throw new Error("Entity#addLayer - Layer requires a namespace");
-            }
-
-            if (typeof namespace === 'object') {
+            } else if (typeof namespace === 'object') {
 
                 for (var n in namespace) {
 
@@ -121,7 +115,7 @@
             for (var l in layers) {
 
                 if (layers.hasOwnProperty(l) && typeof layers[l] === 'function') {
-                    
+
                     layer = layers[l];
                     layer(ctx || this.ctx, date, layer.created_at);
 
@@ -137,7 +131,7 @@
         }
 
     });
-
+    
     TK.extend(TK.Entity.prototype, window.EventEmitter2.prototype);
 
 }(window.Tilekit));

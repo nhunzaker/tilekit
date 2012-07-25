@@ -40,7 +40,6 @@ module.exports = function(grunt) {
                 'src/tile.js',
                 'src/grid.js',
                 'src/unit.js',
-                'src/character.js',
                 'src/projectile.js',
                 'src/scene.js',
                 'src/battle.js',

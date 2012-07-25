@@ -10,42 +10,67 @@
 //
 // -------------------------------------------------- //
 
-(function(Tilekit) {
+(function(TK) {
 
     "use strict";
-    
+
     var Geo     = window.Geo,
-        Sprite  = Tilekit.Sprite;
+        Sprite  = TK.Sprite;
 
     var round   = Math.round,
         roundTo = Math.roundTo,
         abs     = Math.abs,
         PI      = Math.PI,
+        min     = Math.min,
+        max     = Math.max,
 
         findDistance = Geo.findDistance,
         findPoint    = Geo.findPoint,
         isWithinCone = Geo.isWithinCone,
         requestAnimationFrame = window.requestAnimationFrame;
 
-    var Unit = Tilekit.Unit = Tilekit.Entity.extend();
+    var Unit = TK.Unit = TK.Entity.extend();
 
-    // Defaults
-    Unit.statics({
+    Unit.methods({
+        
+        actions : {},
+        layers  : {},
+        senses  : {},
+        
+        animations: {
 
-        defaults: {
+            stand: {
+                slot: 0
+            },
+
+            move: {
+                frames: 3,
+                duration: 220,
+                slot: 0
+            },
+
+            death: {
+                frames: 5,
+                duration: 500,
+                slot: 65
+            }
+
+        },
+
+        defaults : {
 
             animation: "stand",
 
             face: 270,
+            path: [],
+            position: { x: 0, y: 0 },
 
             health: 100,
             maxHealth: 100,
-
             energy: 100,
             maxEnergy: 100,
-
-            path: [],
-            position: { x: 0, y: 0 },
+            
+            weight: 100,
 
             // Senses
             // ------------------------- //
@@ -66,24 +91,13 @@
             strength: 1,
             dexterity: 1,
             intelligence: 1,
-            vitality: 1,
+            vitality: 1
 
-            // Abilities
-            // ------------------------- //
-            
-            spells: {}
-            
-        }
+        },
 
-    });
-    
-    Unit.methods({
-        
-        layers: {},
+        isUnit : true,
 
-        isUnit: true,
-
-        tile: function() {
+        tile : function() {
 
             var size = this.grid.get("size"),
                 pos  = this.get("position");
@@ -97,13 +111,11 @@
 
         initialize: function(name, scene, options) {
 
-            var grid = scene.grid,
+            var grid = this.grid = scene.grid,
                 size = grid.get('size'),
                 self = this;
 
-            this.scene = scene;
-            this.grid  = scene.grid;
-
+            this.scene  = scene;
             this.canvas = document.createElement("canvas");
             this.ctx    = this.canvas.getContext('2d');
 
@@ -133,193 +145,55 @@
                 grid.on('refresh', this.__boundDraw, this);
             }
             
-            this.on('draw', function() {
-                self.renderLayers(self.ctx);
+            this.on("draw", function() { 
+                this.renderLayers(this.ctx); 
             });
-
+            
             this.on("change:animation", function(next, prev) {
 
                 if (prev === next) {
-                    self.sprite.iterations = 0;
+                    this.sprite.iterations = 0;
                     return;
                 }
                 
-                var animation = self.animations[next];
-
+                var animation = this.animations[next];
+                
+                if (!animation) {
+                    console.warn("Animation \"%s\" for unit \"%s\" does not exist", next, this.get("name"));
+                    this.attributes.animation = "stand";
+                    return;
+                }
+                
                 if (animation) {
-                    self.sprite.keyframe = animation.keyframe || 1;
-                    self.sprite.iterations = 0;
-                    self.sprite.base_offset.x = animation.offset.x || 0;
-                    self.sprite.base_offset.y = animation.offset.y || 0;
-                    self.sprite.setFrames(animation.frames || 1);
-                    self.sprite.setDuration(animation.duration || 1);
+                    this.sprite.keyframe = animation.keyframe || 1;
+                    this.sprite.iterations = 0;
+                    this.sprite.base_offset.x = 0;
+                    this.sprite.base_offset.y = animation.slot * size;
+                    this.sprite.setFrames(animation.frames || 1);
+                    this.sprite.setDuration(animation.duration || 1);
                 }
-
             });
 
-            this.on("change:health", function(next, prev) {
-                
-                var pos   = this.get("position"),
-                    size  = this.grid.get("size"),
-                    min   = Math.min,
-                    max   = Math.max,
-                    ratio = min(1, max(0.01, next / this.get("maxHealth")) ),
-                    delta = next - prev,
-                    sprite = this.sprite;
-                
-                if (next <= 0) {
-                    this.death();
-                }
-                
-                // Did we lose health?
-                if (next < prev) {
-                    
-                    // Yes : Flag Damage
-
-                    this.addLayer("pain-" + Date.now(), function(ctx, date, birth) {
-                        
-                        var now = (date.getTime() - birth) / 1000;
-                        
-                        Tilekit.Text(ctx, delta, pos.x + (size / 2), pos.y - size * now, { 
-                            alpha: min(0.8, 0.1 / now),
-                            align: "center",
-                            color: "red",
-                            font: 8 + (now * 10) + "pt Helvetica"
-                        });
-
-                    }, this, 1000);
-                    
-                    this.addLayer("healthchange", function(ctx, date, birth) {
-                        
-                        var now = (date.getTime() - birth) / 1000;
-                        
-                        Tilekit.Rectangle(ctx, sprite.position.x, sprite.position.y, sprite.width, sprite.height, { 
-                            fill: "red",
-                            alpha: min(0.6, 0.1 / now),
-                            composite: "source-atop"
-                        });
-                        
-                    }, this, 1000);
-
-                } else {
-
-                    // No : Flag Healing
-
-                    this.addLayer("health" + Date.now(), function(ctx, date, birth) {
-
-                        var now = (date.getTime() - birth) / 1000;
-
-                        Tilekit.Rectangle(ctx, sprite.position.x, sprite.position.y, sprite.width, sprite.height, { 
-                            fill: "aquamarine",
-                            alpha: min(0.6, 0.1 / now),
-                            composite: "source-atop"
-                        });
-                        
-                    }, this, 1000);
-
-                    this.addLayer("pleasure-" + Date.now(), function(ctx, date, birth) {
-                        
-                        var now = (date.getTime() - birth) / 1000;
-                        
-                        Tilekit.Text(ctx, delta, pos.x + (size / 2), pos.y - size * now, { 
-                            alpha: min(0.8, 0.1 / now),
-                            align: "center",
-                            color: "green",
-                            font: 8 + (now * 10) + "pt Helvetica"
-                        });
-
-                    }, this, 1000);
-                }
-
-                var color = ["red", "crimson", "crimson", 
-                             "orange", "orange", "gold", "yellow",
-                             "lime", "lime", "lime"
-                            ][round(ratio * 9)];
-                
-                this.addLayer("healthbar", function(ctx, date, birth) {
-                    
-                    var pos = this.get("position"),
-                        now = (date.getTime() - birth) / 1000;
-                    
-                    Tilekit.Rectangle(ctx, pos.x, pos.y - size / 4, size, size / 8, { 
-                        fill: "black",
-                        alpha: 0.7
-                    });
-                    
-                    Tilekit.Rectangle(ctx, pos.x, pos.y - size / 4, size * ratio, size / 8, { 
-                        fill: color,
-                        stroke: "rgba(0,0,0,0.25)",
-                        alpha: 0.7
-                    });
-                    
-                }, this, 1500);
-                
-            });
 
             // Attributes
             // -------------------------------------------------- //
 
-            this.attributes = Tilekit.extend({}, Unit.defaults, {
+            this.attributes = TK.extend({}, this.defaults, {
                 name: name,
                 created_at: Date.now()
             }, this.attributes, options);
 
-            this.layers = Tilekit.extend({}, this.layers);
+            this.layers = TK.extend({}, this.layers);
 
-            this.setFace(this.get("face"));
-            
 
-            // Animations
+            // Add actions
             // -------------------------------------------------- //
 
-            this.animations = {
+            this.actions = TK.extend({}, this.actions);
 
-                stand: {
-                    offset: {
-                        x: 0,
-                        y: 0
-                    }
-                },
-
-                walk: {
-                    frames: 3,
-                    duration: 220,
-                    offset: {
-                        x: 0,
-                        y: 0
-                    }
-                },
-
-                melee: {
-                    frames: 9,
-                    keyframe: 3,
-                    duration: 350,
-                    offset: {
-                        y: size * 13
-                    },
-                    iterations: 1
-                },
-
-                range: {
-                    frames: 7,
-                    keyframe: 6,
-                    duration: 500,
-                    offset: {
-                        y: size * 26
-                    },
-                    iterations: 1
-                },
-
-                spell: {
-                    frames: 11,
-                    duration: 400,
-                    offset: {
-                        y: size * 39
-                    },
-                    iterations: 1
-                }
-
-            };
+            for (var action in this.actions) {
+                this.addAction(action, this.actions[action]);
+            }
 
         }
 
@@ -329,25 +203,20 @@
     // -------------------------------------------------- //
 
     Unit.methods({
-
         getTileFront: function(offset) {
             return findPoint(this.tile(), offset || 1, -this.get("face"));
         },
-
         getPositionFront: function(offset) {
             var size = this.grid.get("size");
             return findPoint(this.get("position"), size * (offset || 1), -this.get("face"));
         },
-
         getTileBack: function(offset) {
             return findPoint(this.tile(), offset || 1, this.get("face"));
         },
-
         getPositionBack: function(offset) {
             var size = this.grid.get("size");
             return findPoint(this.get("position"), size * (offset || 1), this.get("face"));
         },
-
         setFace: function(direction) {
             
             var face = direction.isUnit ? abs(direction.get("face") - 180) : direction,
@@ -373,7 +242,7 @@
 
     Unit.methods({
         toJSON: function() {
-            return Tilekit.extend({}, this.attributes, this.tile());
+            return TK.extend({}, this.attributes, this.tile());
         },
         remove: function() {
             this.grid.removeListener("refresh", this.__boundDraw);
@@ -385,20 +254,50 @@
     // -------------------------------------------------- //
 
     Unit.methods({
-        
-        registerAction: function(name, fn) {
+        addAction : function(name, options) {
 
-            var self = this;
+            var self = this,
+                animation  = options.animation  || "stand",
+                behavior   = options.behavior   || function() {},
+                keyframe   = options.keyframe   || false,
+                onKeyframe = options.onKeyframe || function() {},
+                halt       = options.halt === undefined ? true : options.halt,
+                before     = options.before || function() {};
 
-            this.actions[name] = function() {
-                
-                if (self.acting) {
+            // Check for presence of animation
+            self.animations[animation] = self.animations[animation] || {
+                duration   : options.duration || 0,
+                frames     : options.frames || 1,
+                iterations : options.iterations || 0,
+                keyframe   : options.keyframe,
+                slot       : options.slot || 0
+            };
+            
+            self.actions = self.actions || {};
+
+            self.actions[name] = function fn() {
+
+                var args = arguments;
+
+                if (self.acting || before.call(self) === false) {
                     return false;
                 }
-                
+
                 self.acting = true;
                 
-                fn.apply(self, self.ctx, Date.now());
+                if (halt === true) {
+                    self.halt();
+                }
+                
+                self.set("animation", animation);
+
+                behavior.apply(self, args);
+                
+                if (keyframe) {
+                    self.sprite.once("keyframe", function() {
+                        onKeyframe.apply(self, args);
+                    });
+                }
                 
                 self.sprite.once("iteration", function() {
                     self.acting = false;
@@ -408,99 +307,26 @@
             };
 
         },
-        
-        attack: function() {
-            
-            if (this.acting) {
-                return false;
-            }
-            
-            this.acting = true;
-            
-            var self = this;
 
-            this.halt();
-            this.set("animation", "melee");
+        death : function() {
 
-            this.sprite.once("keyframe", function() {
-                Tilekit.emit("damage", self.getPositionFront(), self);
-            });
-            
-            this.sprite.once("iteration", function() {
-                self.acting = false;
-            });
-        },
-
-        shoot: function() {
-
-            if (this.acting) {
-                return false;
-            }
-
-            this.acting = true;
-
-            var size = this.grid.get("size"),
-                range = Math.roundTo(this.get("vision") / size, size),
-                self = this;
-
-            this.halt();
-
-            this.set("animation", "range");
-            
-            this.sprite.once("keyframe", function() {
-
-                Tilekit.Projectile({
-
-                    source: self,
-
-                    from: self.get("position"),
-
-                    distance: self.get("vision") * 2,
-                    angle: self.get("face"),
-                    scene: self.scene
-                });
-
-            });
-
-            this.sprite.once("iteration", function() {
-                self.acting = false;
-            });
-
-        },
-
-        castSpell: function(name, target) {
-            
-            var self = this;
-
-            if (this.acting) {
-                return false;
-            }
-
-            this.acting = true;
-
-            this.halt();
-
-            this.set("animation", "spell");
-            this.get("spells")[name].apply(this, target, Date.now());
-            this.emit("spell", this.get("position"));
-
-            this.sprite.once("iteration", function() {
-                self.acting = false;
-            });
-
-        },
-
-        death: function() {
-
-            var pos = this.get("position"),
+            var self = this,
+                pos  = this.get("position"),
                 size = this.grid.get("size");
+            
+            this.layers = [];
 
-            Tilekit.emit("death", this);
-            this.emit("death");
-            this.scene.remove(this);
+            this.set("animation", "death");
+            
+            this.sprite.on('iteration', function() {
+                TK.emit("death", self);
+                self.emit("death");
+                self.scene.remove(self);
+            });
+
         }
-
     });
+
 
     // Rendering Methods
     // -------------------------------------------------- //
@@ -530,11 +356,11 @@
         }
     });
 
+
     // Movement
     // -------------------------------------------------- //
 
     Unit.methods({
-
         halt: function(trigger) {
 
             var size = this.grid.get('size'),
@@ -543,13 +369,18 @@
 
             this.set({
                 moving: false,
-                position: {
-                    x: roundTo(pos.x, size),
-                    y: roundTo(pos.y, size)
-                },
-                path: [],
-                animation: "stand"
+                /*
+                 position: {
+                 x: (pos.x, size),
+                 y: roundTo(pos.y, size)
+                 },
+                 */
+                path: []
             });
+
+            if (!this.acting) {
+                this.set("animation", "stand");
+            }
 
             if (trigger) {
                 this.grid.emit("tile:" + tile.x + "," + tile.y);
@@ -558,25 +389,31 @@
             }
 
         },
-
-        move: function move (direction, pan, callback) {
+        move: function move (direction, options, callback) {
 
             if (this.get("moving")) {
                 return false;
             }
 
-            this.set("moving", true);
+            if (typeof direction === 'object') {
+                options = arguments[0];
+                callback = arguments[1];
+                direction = this.get("face");
+            }
 
+            if (callback && typeof callback !== 'function') {
+                console.error("Unit#move callback argument must be a function. Was actually: ", callback);
+                callback = function() { return false; };
+            }
+            
             callback = callback || function(){};
             
-            // At the very least, get the character facing in the intended direction
-            this.setFace(direction);
-
             var grid   = this.grid,
                 self   = this,
                 
                 size   = grid.get('size'),
-                speed  = this.get("movement_speed"),
+                speed  = options.speed || this.get("movement_speed"),
+                amount = options.amount || 1,
                 pos    = this.get("position"),
                 
                 delta  = findPoint({ x: 0, y: 0 }, 1, -direction),
@@ -584,29 +421,33 @@
                 limitX = delta.x > 0 ? Math.min : Math.max,
                 limitY = delta.y > 0 ? Math.min : Math.max,
 
-                goal   = findPoint(pos, size, -direction);
+                goal   = findPoint(pos, size * amount, -direction);
 
-            this.set("animation", "walk");
+            this.set("moving", true);
+
+            if (!this.acting) {
+                this.set("animation", "move");
+            }
             
             // Hit detection
-            if (this.detectHit(delta.x * size, delta.y * size) ) {
+            if (this.detectHit(delta.x * size * amount, delta.y * size * amount) ) {
                 return this.halt(true);
             }
 
             function animate() {
                 
-                var shift = round(grid.shift);
+                var shift = round(TK.shift) || 1;
 
                 pos.x = limitX(goal.x, pos.x + delta.x * shift * speed);
                 pos.y = limitY(goal.y, pos.y + delta.y * shift * speed);
                 
                 // Do we pan the screen with this character?
-                if (pan) {
+                if (options.pan) {
                     grid.panTo(self.tile());
                 }
 
                 if ( pos.x === goal.x && pos.y === goal.y ) {
-                    self.halt(true);
+                    self.halt();
                     return callback.apply(self, [Date.now()]);
                 }
                 
@@ -619,7 +460,6 @@
             return this;
 
         },
-
         setPath: function fn(destination, options) {
             
             // We use this function to make sure we are always
@@ -651,14 +491,15 @@
 
             function traceSteps() {
                 if ( path.length && audit === fn.__audit) {
-                    self.move(path.shift(), options.pan, traceSteps);
+                    var angle = path.shift();
+                    self.setFace(angle);
+                    self.move(angle, options, traceSteps);
                 }
             }
 
             traceSteps();
 
         },
-
         detectHit: function(offsetX, offsetY) {
 
             var others  = this.scene.units,
@@ -704,19 +545,22 @@
                         cone    = other.get("visionCone") || 0,
                         hearing = other.get("hearing") || 0,
                         angle   = other.get("face");
-
-                    // Detect characters in proximity to self
+                    
+                    // Senses
                     // -------------------------------------------------- //
 
-                    if (isWithinCone(end, start, vision, angle, cone)) {
-                        other.emit(["see", "see:" + name], this);
-                    }
+                    for (var s in other.senses) { if (other.senses.hasOwnProperty(s)) {
 
-                    if (hearing > prox) {
-                        other.emit(["hear", "hear" + name], this);
-                    }
+                        if ( other.senses[s].apply(other, [start, end, prox]) ) {
 
-                    // Detect characters in blocking distance
+                            other.emit(s, this);
+                            other.emit(s + ":" + name, this);
+                        }
+
+                    }}
+
+                    
+                    // Collision
                     // -------------------------------------------------- //
 
                     if (size > prox + size) {
@@ -736,21 +580,17 @@
         }
     });
 
-
-
     // Spell casting
     // -------------------------------------------------- //
 
     Unit.methods({
-        
-        addSpell: function(name, fn) {
+        addSpell: function(name, cost, fn) {
             var spells = this.get("spells");
             spells[name] = fn;
         },
-        
         removeSpell: function(name) {
             delete this.get("spells")[name];
         }
-
     });
-}(window.Tilekit));
+
+}(window.TK));

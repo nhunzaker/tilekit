@@ -6,19 +6,22 @@
     var Geo = window.Geo,
         findDistance = Geo.findDistance;
     
-    var Character = Tilekit.Character,
+    var Unit = Tilekit.Unit,
         TextBox = window.Textbox;
     
-    var Scene = Tilekit.Scene = window.klass(function(options) {
-
-        options = options || {};
+    var Scene = Tilekit.Scene = Tilekit.Entity.extend({
         
-        Tilekit.extend(this, {
-            units: []
-        }, options);
+        initialize: function(options) {
 
-        if (this.units.length) {
-            this.add(this.units);
+            options = options || {};
+            
+            Tilekit.extend(this, {
+                units: []
+            }, options);
+
+            if (this.units.length) {
+                this.add(this.units);
+            }
         }
 
     });
@@ -51,6 +54,7 @@
 
         if (options instanceof Tilekit.Unit) {
             c = this.units[options.get("name")] = options;
+            this.emit("add", c);
             return c;
         }
 
@@ -65,8 +69,10 @@
             }
         }, options);
         
-        c = this.units[options.name] = new Character(options.name, this, options);
-
+        c = this.units[options.name] = new Unit(options.name, this, options);
+        
+        this.emit("add", c);
+        
         return c;
 
     };
@@ -85,37 +91,6 @@
         this.units[name].remove();
 
         delete this.units[name];
-    };
-
-    // Messaging
-    // -------------------------------------------------- //
-
-    Scene.prototype.message = function(header, message, callback) {
-        
-        var grid = this.grid,
-            uuid = Date.now();
-
-        callback = callback || function(){};
-        
-        // Okay, now generate the new message
-        this.grid.addLayer("message-" + uuid, function(ctx, date) {
-            
-            var text = new TextBox({
-                header: header,
-                subheader: new Array(header.length + 3).join("-"),
-                body: message,
-                context: grid.c
-            });
-
-            text.draw.apply(text);
-        });
-
-        $(window).one("keydown", function remove(e) {
-            grid.removeLayer("message-" + uuid);
-            callback(e);
-            return false;
-        });        
-
     };
 
 
@@ -159,22 +134,18 @@
 
     };
 
+    Scene.prototype.each = function(fn) {
+        var i = 0;
 
-    // JSON Operations
-    // -------------------------------------------------- //
-
-    // GET
-    Scene.prototype.fetch = function(url, callback) {
-        
-        $.get(url, function(data) {
-            callback(data);
-        });
-
-        return {
-            then: function(fn) {
-                callback = fn;
+        for (var c in this.units) {
+            
+            if (!this.units.hasOwnProperty(c) ) {
+                continue;
             }
-        };
+            
+            fn.apply(this.units[c], [i]);
+            i++;
+        }
 
     };
 
