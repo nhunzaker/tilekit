@@ -89,7 +89,7 @@
                         Tilekit.Projectile({
                             source: this,
                             from: this.get("position"),
-                            distance: this.get("vision") * 7,
+                            distance: this.get("vision") * 2,
                             angle: this.get("face"),
                             scene: this.scene
                         });

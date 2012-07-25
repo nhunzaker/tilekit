@@ -2879,13 +2879,11 @@ TextBox.prototype.draw = function() {
     var Projectile = TK.Projectile = function(options) {
         
         var settings = TK.extend({
-            
             damage: 0,
             source: null,
             distance: 300,
             speed: 10,
             angle: 0,
-
             scene: null
 
         }, options);
