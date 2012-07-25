@@ -132,7 +132,7 @@
 
     Mousetrap
         .bind("escape", function() {
-            scene.grid.toggle();
+            TK.toggle();
         });
 
 
@@ -301,6 +301,10 @@
     
     window.onblur = function() {
         Tilekit.pause();
+    };
+
+    window.onfocus = function() {
+        Tilekit.play();
     };
 
 

@@ -56,6 +56,7 @@
             
             TK.paused = true;
 
+            /*
             var ctx = this.ctx,
                 canvas = this.canvas;
             
@@ -63,7 +64,7 @@
 
             TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2 + 1, { align: "center", color: "#000" });
             TK.Text(ctx, "PAUSED", canvas.width / 2, canvas.height / 2,     { align: 'center', color: "#fff" });
-
+             */
         },
 
         play: function () {

@@ -41,13 +41,14 @@
 
             attack: {
                 animation: "melee",
-                frames: 11,
+                frames: 10,
+                keyframe: 5,
                 duration: 350,
                 slot: 13,
                 iterations: 1,
                 
-                onKeyframe: function(self) {
-                    Tilekit.emit("damage", self.getPositionFront(), self);
+                onKeyframe: function() {
+                    Tilekit.emit("damage", this.getPositionFront(), this);
                 }
 
             },

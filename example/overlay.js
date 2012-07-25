@@ -19,7 +19,6 @@ function InfuseDamageGraphics(target) {
             delta = next - prev,
             sprite = target.sprite,
             color  = next < prev ? "red" : "aquamarine";
-
         
         // Floating Delta Indicator
         // -------------------------------------------------- //
